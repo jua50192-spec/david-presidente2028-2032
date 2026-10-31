@@ -1,0 +1,56 @@
+CÓMO PONER LAS FOTOS - Página CAD (Comando de Apoyo a David)
+=============================================================
+
+FORMA FÁCIL: MODO EDICIÓN (elegir fotos desde la página)
+--------------------------------------------------------
+1. Descomprime esta carpeta y abre "index.html" con doble clic.
+2. Haz clic en la barra de direcciones (arriba), ve al final,
+   escribe  #editar  y presiona Enter.
+   Ejemplo: file:///C:/Users/Antonio/Desktop/campana-cad/index.html#editar
+3. Abajo aparece una barra negra: "Modo edición".
+4. En cada foto toca "📷 Cambiar" y elige una imagen.
+   - La "✕" roja quita esa foto.
+   - "Quitar todas" borra todas las que elegiste.
+   - "Salir" cierra el modo edición.
+5. Las fotos se quedan guardadas EN ESE NAVEGADOR.
+   Si cierras y vuelves a abrir la página, siguen ahí.
+
+IMPORTANTE:
+- Usa siempre el mismo navegador (por ejemplo, Chrome) para mostrarla.
+- Las fotos elegidas así SOLO las ves tú en ese aparato.
+  Otra persona en su teléfono no las verá.
+- Si borras el historial/datos del navegador, se borran esas fotos.
+
+OTRA FORMA: PONER LAS FOTOS EN LA CARPETA "fotos"
+--------------------------------------------------
+Esta forma sí la ve todo el mundo cuando la subas a GitHub.
+
+1. Descomprime esta carpeta en tu computadora.
+2. Abre la carpeta "fotos".
+3. Copia tus fotos ahí y cámbiales el nombre EXACTO como dice la lista.
+4. Abre "index.html" con doble clic. Las fotos aparecen solas.
+
+Sirven fotos .jpg, .jpeg, .png o .webp.
+Escribe los nombres en minúscula, sin espacios y sin acentos.
+
+NOMBRES DE LAS FOTOS
+--------------------
+venancio.jpg          -> Portada, lado izquierdo (foto vertical)
+david.jpg             -> Portada, lado derecho (foto vertical)
+david-sobre.jpg       -> Sección "Sobre David Collado" (foto vertical)
+actividad1.jpg        -> Actividades, foto 1 (foto horizontal)
+actividad2.jpg        -> Actividades, foto 2 (foto horizontal)
+actividad3.jpg        -> Actividades, foto 3 (foto horizontal)
+actividad4.jpg        -> Actividades, foto 4 (foto horizontal)
+venancio-equipo.jpg   -> Círculo de Venancio en "Nuestro equipo"
+joel.jpg              -> Círculo de Joel en "Nuestro equipo"
+antonio.jpg           -> Círculo de Antonio en "Nuestro equipo"
+
+Si una foto no está, en su lugar sale un cuadro que dice qué nombre debe tener.
+
+CONSEJOS
+--------
+- Para los círculos del equipo, usa fotos donde la cara esté en el centro.
+- Fotos de menos de 1 MB cargan más rápido en el teléfono.
+- Usa fotos oficiales o autorizadas por la campaña.
+- El formulario "Súmate" todavía NO guarda datos (es de muestra).
