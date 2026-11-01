@@ -106,6 +106,13 @@
   /* Fotos de personas: siempre se mantiene la parte de arriba (la cabeza) */
   .foto-lado img, .foto-sobre img { object-position: center top; }
   .avatar img { object-position: center 15%; }
+  /* Videos */
+  .videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .video { position: relative; aspect-ratio: 16/9; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 4px 16px rgba(11,61,145,.12); }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .video-vacio { aspect-ratio: 16/9; border: 2px dashed var(--azul); border-radius: 16px; background: var(--azul-claro); color: var(--azul); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 600; padding: 16px; }
+  .video-vacio .play { font-size: 2.4rem; line-height: 1; margin-bottom: 8px; }
+  .video-vacio small { font-weight: 400; opacity: .8; margin-top: 4px; }
   /* Galería */
   .galeria { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
   .galeria .foto-vacia { aspect-ratio: 4/3; font-size: .9rem; }
@@ -129,7 +136,7 @@
   footer p { opacity: .85; margin-top: 6px; }
 
   /* Menú en teléfono */
-  @media (max-width: 600px) {
+  @media (max-width: 700px) {
     nav { width: auto; }
     .btn-menu { display: block; }
     nav ul { display: none; position: absolute; top: 64px; left: 0; right: 0; background: var(--azul); flex-direction: column; gap: 0; padding: 8px 0; }
@@ -173,6 +180,7 @@
       <ul id="menu">
         <li><a href="#sobre">Candidato</a></li>
         <li><a href="#actividades">Actividades</a></li>
+        <li><a href="#videos">Videos</a></li>
         <li><a href="#equipo">Equipo DN</a></li>
         <li><a href="#sumate">Súmate</a></li>
         <li><a href="#contacto">Contacto</a></li>
@@ -263,8 +271,17 @@
   </div>
 </section>
 
+<!-- VIDEOS -->
+<section id="videos">
+  <div class="contenedor">
+    <h2>Videos</h2>
+    <p class="subtitulo">Mira nuestras actividades y mensajes de campaña.</p>
+    <div class="videos" id="listaVideos"></div>
+  </div>
+</section>
+
 <!-- EQUIPO -->
-<section id="equipo">
+<section id="equipo" class="fondo-claro">
   <div class="contenedor">
     <h2>Nuestro equipo en el Distrito Nacional</h2>
     <p class="subtitulo">Trabajando cada día por el triunfo de David Collado 2028-2032.</p>
@@ -290,7 +307,7 @@
 
 
 <!-- SÚMATE -->
-<section id="sumate" class="fondo-claro">
+<section id="sumate">
   <div class="contenedor">
     <h2>Súmate al equipo</h2>
     <p class="subtitulo">Déjanos tus datos y un miembro del equipo se pondrá en contacto contigo.</p>
@@ -324,7 +341,7 @@
 </section>
 
 <!-- CONTACTO -->
-<section id="contacto">
+<section id="contacto" class="fondo-claro">
   <div class="contenedor">
     <h2>Contacto</h2>
     <p class="subtitulo">Síguenos y escríbenos.</p>
@@ -348,6 +365,56 @@
   const menu = document.getElementById('menu');
   btnMenu.addEventListener('click', () => menu.classList.toggle('abierto'));
   menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => menu.classList.remove('abierto')));
+
+  // ===================== VIDEOS =====================
+  // ✏️ PARA PONER UN VIDEO: copia el enlace de YouTube o Facebook
+  //    y pégalo entre las comillas '' de un espacio vacío.
+  //    Ejemplo: 'https://www.youtube.com/watch?v=XXXXXXXXXXX',
+  //    Si dejas las comillas vacías, sale el cuadro de "Video pendiente".
+  //    Puedes agregar más líneas iguales para tener más videos.
+  const VIDEOS = [
+    '',
+    '',
+    '',
+  ];
+
+  function enlaceParaInsertar(url) {
+    url = (url || '').trim();
+    if (!url) return null;
+    // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID, youtube.com/live/ID
+    const yt = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if (yt) return 'https://www.youtube-nocookie.com/embed/' + yt[1];
+    // Facebook: cualquier enlace de video de facebook.com o fb.watch
+    if (/(facebook\.com|fb\.watch)/.test(url)) {
+      return 'https://www.facebook.com/plugins/video.php?show_text=false&href=' + encodeURIComponent(url);
+    }
+    return 'no-valido';
+  }
+
+  const listaVideos = document.getElementById('listaVideos');
+  VIDEOS.forEach((url, i) => {
+    const src = enlaceParaInsertar(url);
+    if (src && src !== 'no-valido') {
+      const caja = document.createElement('div');
+      caja.className = 'video';
+      const marco = document.createElement('iframe');
+      marco.src = src;
+      marco.title = 'Video ' + (i + 1);
+      marco.loading = 'lazy';
+      marco.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      marco.allowFullscreen = true;
+      marco.referrerPolicy = 'strict-origin-when-cross-origin';
+      caja.appendChild(marco);
+      listaVideos.appendChild(caja);
+    } else {
+      const vacio = document.createElement('div');
+      vacio.className = 'video-vacio';
+      vacio.innerHTML = src === 'no-valido'
+        ? '<div class="play">⚠️</div>Video ' + (i + 1) + '<small>El enlace no es de YouTube ni Facebook</small>'
+        : '<div class="play">▶</div>Video ' + (i + 1) + '<small>Pendiente</small>';
+      listaVideos.appendChild(vacio);
+    }
+  });
 
   // ===================== FOTOS =====================
   // 1) Si elegiste una foto en "Modo edición", se usa esa (guardada en este navegador).
