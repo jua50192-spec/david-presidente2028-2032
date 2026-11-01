@@ -109,6 +109,11 @@
   /* Videos */
   .videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
   .video { position: relative; aspect-ratio: 16/9; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 4px 16px rgba(11,61,145,.12); }
+  .video-con-titulo { margin: 0; }
+  .video-con-titulo figcaption { text-align: center; color: var(--azul); font-weight: 600; margin-top: 10px; }
+  .video-archivo { background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; box-shadow: 0 4px 16px rgba(11,61,145,.12); }
+  .video-archivo video { display: block; width: 100%; max-height: 560px; background: #000; }
+  .videos { align-items: start; }
   .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .video-vacio { aspect-ratio: 16/9; border: 2px dashed var(--azul); border-radius: 16px; background: var(--azul-claro); color: var(--azul); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 600; padding: 16px; }
   .video-vacio .play { font-size: 2.4rem; line-height: 1; margin-bottom: 8px; }
@@ -366,14 +371,32 @@
   btnMenu.addEventListener('click', () => menu.classList.toggle('abierto'));
   menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => menu.classList.remove('abierto')));
 
+  // ===================== CONTADOR DE VISITAS (GoatCounter) =====================
+  // ✏️ Escribe entre las comillas el código de tu cuenta de GoatCounter.
+  //    Ejemplo: si tu panel es https://cad-dn.goatcounter.com, el código es 'cad-dn'
+  //    Si lo dejas vacío, el contador no se activa.
+  const GOATCOUNTER_CODIGO = '';
+
+  // No cuenta las visitas cuando abres la página desde tu computadora (archivo local)
+  // ni en modo edición (#editar), para que tus pruebas no inflen el número.
+  if (GOATCOUNTER_CODIGO && location.protocol.startsWith('http') && location.hash !== '#editar') {
+    const contador = document.createElement('script');
+    contador.async = true;
+    contador.src = 'https://gc.zgo.at/count.js';
+    contador.dataset.goatcounter = 'https://' + GOATCOUNTER_CODIGO.trim() + '.goatcounter.com/count';
+    document.body.appendChild(contador);
+  }
+
   // ===================== VIDEOS =====================
   // ✏️ PARA PONER UN VIDEO: copia el enlace de YouTube o Facebook
   //    y pégalo entre las comillas '' de un espacio vacío.
   //    Ejemplo: 'https://www.youtube.com/watch?v=XXXXXXXXXXX',
   //    Si dejas las comillas vacías, sale el cuadro de "Video pendiente".
   //    Puedes agregar más líneas iguales para tener más videos.
+  //    También sirven videos subidos a la carpeta videos/ de GitHub:
+  //    { url: 'videos/nombre.mp4', titulo: 'Texto debajo del video' },
   const VIDEOS = [
-    '',
+    { url: 'videos/verificate.mp4', titulo: 'Cómo verificarte en el PRM, paso a paso' },
     '',
     '',
   ];
@@ -381,6 +404,8 @@
   function enlaceParaInsertar(url) {
     url = (url || '').trim();
     if (!url) return null;
+    // Video subido a la página (carpeta videos/)
+    if (/\.(mp4|webm|mov|m4v)$/i.test(url)) return 'archivo';
     // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID, youtube.com/live/ID
     const yt = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
     if (yt) return 'https://www.youtube-nocookie.com/embed/' + yt[1];
@@ -392,9 +417,30 @@
   }
 
   const listaVideos = document.getElementById('listaVideos');
-  VIDEOS.forEach((url, i) => {
+  VIDEOS.forEach((item, i) => {
+    const url = typeof item === 'string' ? item : (item.url || '');
+    const titulo = typeof item === 'string' ? '' : (item.titulo || '');
     const src = enlaceParaInsertar(url);
-    if (src && src !== 'no-valido') {
+    if (src === 'archivo') {
+      const figura = document.createElement('figure');
+      figura.className = 'video-con-titulo';
+      const caja = document.createElement('div');
+      caja.className = 'video-archivo';
+      const v = document.createElement('video');
+      v.src = url;
+      v.controls = true;
+      v.playsInline = true;
+      v.preload = 'metadata';
+      v.poster = url.replace(/\.[^.]+$/, '.jpg'); // imagen de portada con el mismo nombre (opcional)
+      caja.appendChild(v);
+      figura.appendChild(caja);
+      if (titulo) {
+        const pie = document.createElement('figcaption');
+        pie.textContent = titulo;
+        figura.appendChild(pie);
+      }
+      listaVideos.appendChild(figura);
+    } else if (src && src !== 'no-valido') {
       const caja = document.createElement('div');
       caja.className = 'video';
       const marco = document.createElement('iframe');
