@@ -43,6 +43,8 @@
   .foto-lado { width: clamp(95px, 24vw, 230px); }
   .foto-lado img, .foto-falta { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 16px; border: 4px solid var(--blanco); }
   .foto-falta { display: flex; background: rgba(255,255,255,.12); border-style: dashed; align-items: center; justify-content: center; text-align: center; font-weight: 600; font-size: .85rem; padding: 8px; }
+  .foto-lado { align-self: flex-start; }
+  .cargo-lado { display: block; font-weight: 600; font-size: .85em; opacity: .9; margin-top: 2px; }
   .foto-lado span { display: block; margin-top: 8px; font-weight: 700; font-size: clamp(.75rem, 2vw, 1rem); }
   .logo-partido img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: var(--blanco); border-radius: 50%; padding: 6px; }
   .logo-falta { display: none; width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--blanco); color: var(--azul); font-weight: 800; font-size: .85rem; align-items: center; justify-content: center; text-align: center; line-height: 1.2; }
@@ -206,7 +208,7 @@
       <div class="foto-lado">
         <img class="foto" data-foto="fotos/venancio" alt="Venancio Alcántara">
         <div class="foto-falta">Foto de<br>Venancio<small>fotos/venancio.jpg</small></div>
-        <span>Venancio Alcántara</span>
+        <span>Venancio Alcántara<small class="cargo-lado">Coordinador Distrito Nacional</small></span>
       </div>
       <div class="logo-partido">
         <h2 class="cad">COMANDO DE APOYO A DAVID (CAD)</h2>
