@@ -140,6 +140,10 @@
   .acepto input { width: auto; margin-top: 4px; }
   form .btn { width: 100%; margin-top: 22px; }
   .mensaje { display: none; margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--azul-claro); color: var(--azul); font-weight: 600; text-align: center; }
+  .mensaje.error { background: #fdecec; color: #b42318; }
+  .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .cf-turnstile { margin-top: 18px; min-height: 65px; }
+  #btnEnviar:disabled { opacity: .6; cursor: wait; }
 
   /* Contacto */
   .redes { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
@@ -182,6 +186,7 @@
   #btnBorrarTodas { background: #d62828; color: #fff; }
   .editando footer { padding-bottom: 90px; }
 </style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?hl=es" async defer></script>
 </head>
 <body>
 
@@ -232,24 +237,33 @@
       <p class="subtitulo-sumate">Déjanos tus datos y un miembro del equipo se pondrá en contacto contigo.</p>
       <form id="formulario">
         <label for="nombre">Nombre completo</label>
-        <input type="text" id="nombre" required>
+        <input type="text" id="nombre" autocomplete="name" maxlength="120" required>
 
         <label for="cedula">Cédula</label>
         <input type="text" id="cedula" inputmode="numeric" placeholder="000-0000000-0" maxlength="13" pattern="\d{3}-\d{7}-\d{1}" title="Escribe los 11 números de la cédula" required>
 
         <label for="telefono">Teléfono / WhatsApp</label>
-        <input type="tel" id="telefono" placeholder="809-000-0000" required>
+        <input type="tel" id="telefono" inputmode="numeric" placeholder="809-000-0000" maxlength="12" pattern="(809|829|849)-\d{3}-\d{4}" title="Teléfono de 10 números que empiece con 809, 829 o 849" required>
 
         <label for="sector">Sector o barrio</label>
-        <input type="text" id="sector" required>
+        <input type="text" id="sector" maxlength="120" required>
 
         <label class="acepto">
           <input type="checkbox" required>
           Acepto que el equipo guarde mis datos (incluida mi cédula) y los use solo para organizar y contactarme sobre la campaña. No se compartirán con terceros.
         </label>
 
-        <button type="submit" class="btn btn-azul">Quiero sumarme</button>
-        <div class="mensaje" id="mensaje">✅ ¡Gracias! (Versión de muestra: los datos todavía no se guardan.)</div>
+        <!-- Trampa para robots: las personas no ven este campo -->
+        <div class="trampa" aria-hidden="true">
+          <label for="sitio_web">Sitio web</label>
+          <input type="text" id="sitio_web" name="sitio_web" tabindex="-1" autocomplete="off">
+        </div>
+
+        <!-- Verificación "no soy un robot" (Cloudflare Turnstile) -->
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAGEbcMRK-eKHg85L" data-language="es" data-theme="light" data-size="flexible"></div>
+
+        <button type="submit" class="btn btn-azul" id="btnEnviar">Quiero sumarme</button>
+        <div class="mensaje" id="mensaje" role="status" aria-live="polite"></div>
       </form>
     </div>
   </div>
@@ -631,11 +645,76 @@
     campoCedula.value = t;
   });
 
-  // Formulario de muestra: no envía datos a ningún lugar
-  document.getElementById('formulario').addEventListener('submit', (e) => {
+  // ===================== FORMULARIO "SÚMATE" =====================
+  // Envía los datos a la función del servidor (Supabase), que revisa
+  // el "no soy un robot" y guarda la inscripción.
+  const URL_INSCRIBIR = 'https://wgudgnjdmnftrmnroige.supabase.co/functions/v1/smart-task';
+  const formulario = document.getElementById('formulario');
+  const btnEnviar = document.getElementById('btnEnviar');
+  const mensaje = document.getElementById('mensaje');
+  const inicioFormulario = Date.now();
+
+  // Teléfono: pone los guiones solos (809-000-0000)
+  const campoTel = document.getElementById('telefono');
+  campoTel.addEventListener('input', () => {
+    // En RD ningún teléfono empieza con 1: si escriben "1-809…" se quita el 1
+    let n = campoTel.value.replace(/\D/g, '').replace(/^1+/, '').slice(0, 10);
+    let t = n.slice(0, 3);
+    if (n.length > 3) t += '-' + n.slice(3, 6);
+    if (n.length > 6) t += '-' + n.slice(6);
+    campoTel.value = t;
+  });
+
+  function avisar(texto, esError) {
+    mensaje.textContent = texto;
+    mensaje.classList.toggle('error', !!esError);
+    mensaje.style.display = 'block';
+  }
+
+  const RESPUESTAS = {
+    ok:        ['✅ ¡Gracias! Ya eres parte del equipo. Pronto te contactaremos.', false],
+    duplicado: ['Esta cédula ya está inscrita. ¡Ya eres parte del equipo!', true],
+    limite:    ['Se han hecho muchos envíos desde esta conexión. Intenta de nuevo en una hora.', true],
+    datos:     ['Revisa los datos: nombre y apellido, cédula de 11 números y teléfono que empiece con 809, 829 u 849.', true],
+    robot:     ['No pudimos confirmar que no eres un robot. Espera la verificación y vuelve a intentarlo.', true],
+    error:     ['Hubo un problema al guardar. Intenta de nuevo en unos minutos.', true],
+  };
+
+  formulario.addEventListener('submit', async (e) => {
     e.preventDefault();
-    document.getElementById('mensaje').style.display = 'block';
-    e.target.reset();
+    const token = (window.turnstile && turnstile.getResponse()) || '';
+    if (!token) {
+      avisar('Espera un momento a que termine la verificación "no soy un robot" y vuelve a tocar el botón.', true);
+      return;
+    }
+    btnEnviar.disabled = true;
+    btnEnviar.textContent = 'Enviando…';
+    let r = 'error';
+    try {
+      const resp = await fetch(URL_INSCRIBIR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: document.getElementById('nombre').value,
+          cedula: document.getElementById('cedula').value,
+          telefono: campoTel.value,
+          sector: document.getElementById('sector').value,
+          sitio_web: document.getElementById('sitio_web').value,
+          t: Date.now() - inicioFormulario,
+          token: token,
+        }),
+      });
+      const datos = await resp.json().catch(() => ({}));
+      r = datos.r || 'error';
+    } catch (err) {
+      r = 'error';
+    }
+    const [texto, esError] = RESPUESTAS[r] || RESPUESTAS.error;
+    avisar(texto, esError);
+    if (r === 'ok') formulario.reset();
+    if (window.turnstile) turnstile.reset();   // cada verificación sirve una sola vez
+    btnEnviar.disabled = false;
+    btnEnviar.textContent = 'Quiero sumarme';
   });
 </script>
 </body>
