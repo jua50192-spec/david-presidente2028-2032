@@ -107,6 +107,11 @@
   .video-fila .url { color: var(--gris); font-size: .78rem; word-break: break-all; }
   @media (max-width: 560px) { .video-fila { grid-template-columns: 90px 1fr; } .video-fila img, .video-fila .sin-img { width: 90px; } .video-fila .acciones { grid-column: 1 / -1; } }
 
+  .cupo { display: inline-block; background: var(--azul-claro); color: var(--azul); font-size: .8rem; font-weight: 700; border-radius: 12px; padding: 3px 10px; vertical-align: middle; margin-left: 6px; }
+  .cupo.lleno { background: #fdecec; color: var(--rojo); }
+  .barra-subida { position: relative; height: 26px; background: var(--azul-claro); border-radius: 13px; overflow: hidden; margin-top: 12px; }
+  .barra-subida div { height: 100%; width: 0; background: var(--azul); transition: width .2s; }
+  .barra-subida span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: #fff; mix-blend-mode: difference; }
   .aviso-pie { color: var(--gris); font-size: .78rem; text-align: center; margin-top: 30px; }
 </style>
 </head>
@@ -193,21 +198,24 @@
         </form>
         <div id="msgActividad"></div>
       </div>
-      <h2>Actividades publicadas</h2>
+      <h2>Actividades publicadas <span class="cupo" id="cupoFotos"></span></h2>
       <div id="listaActividades"></div>
     </section>
 
     <!-- ---------- VIDEOS ---------- -->
     <section id="tab-videos" class="oculto">
       <div class="tarjeta">
-        <h2>Agregar video</h2>
+        <h2>Subir video <span class="cupo" id="cupoVideos"></span></h2>
         <form id="formVideo" class="grid-form">
-          <div class="todo"><label for="vUrl">Enlace del video (YouTube o Facebook)</label><input type="text" id="vUrl" placeholder="https://www.youtube.com/watch?v=..." required></div>
+          <div class="todo"><label for="vArchivo">Video (del celular o la computadora)</label>
+            <label class="btn claro subir" style="margin-top:2px">🎥 Escoger video<input type="file" id="vArchivo" accept="video/mp4,video/quicktime,video/webm,video/*"></label>
+            <div id="vInfo" class="contador"></div></div>
           <div class="todo"><label for="vTitulo">Título</label><input type="text" id="vTitulo" maxlength="120" placeholder="Ej.: Caminata en Cristo Rey" required></div>
-          <div class="todo"><button class="btn" type="submit" id="btnVideo" style="margin-top:14px">Agregar video</button></div>
+          <div class="todo"><button class="btn" type="submit" id="btnVideo" style="margin-top:14px">Subir video</button></div>
+          <div class="todo"><div class="barra-subida oculto" id="vBarra"><div id="vRelleno"></div><span id="vPorc">0%</span></div></div>
         </form>
         <div id="msgVideo"></div>
-        <p class="contador">Consejo: sube los videos a YouTube (pueden ser "No listados") y pega aquí el enlace. Así no se llena el espacio gratis.</p>
+        <p class="contador">Máximo <b>10 videos</b> en total y <b>50 MB</b> cada uno. Mientras menos pese, mejor: gasta menos datos del plan gratis. Graba en <b>720p</b> si puedes.</p>
       </div>
       <div class="tarjeta">
         <h2>Videos publicados</h2>
@@ -227,11 +235,15 @@
   const SUPABASE_KEY = 'sb_publishable_otl8-8rqa5IDC7mDutj8CQ_UNLFqzi1';           // clave PÚBLICA (publishable). La seguridad la ponen las reglas RLS.
   const DOMINIO_USUARIOS = '@estructura.app';  // mismo sistema de usuarios de la app "Estructura de apoyo"
   const BUCKET = 'cad-fotos';
+  const BUCKET_VIDEOS = 'cad-videos';
+  const MAX_FOTOS = 10, MAX_VIDEOS = 10;
+  const MB = 1024 * 1024, MAX_MB_VIDEO = 50, AVISO_MB_VIDEO = 25;
   const MINUTOS_INACTIVO = 30;
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = (id) => document.getElementById(id);
   let INSCRITOS = [];
+  let TOTAL_FOTOS = 0, TOTAL_VIDEOS = 0;
 
   // ===================== AYUDAS =====================
   const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -326,8 +338,8 @@
   document.querySelectorAll('.pestanas button').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('.pestanas button').forEach((x) => x.classList.toggle('activa', x === b));
     ['inscritos', 'actividades', 'videos'].forEach((t) => $('tab-' + t).classList.toggle('oculto', t !== b.dataset.tab));
-    if (b.dataset.tab === 'actividades' && !cargado.act) { cargado.act = true; cargarActividades(); }
-    if (b.dataset.tab === 'videos' && !cargado.vid) { cargado.vid = true; cargarVideos(); }
+    if (b.dataset.tab === 'actividades') cargarActividades();
+    if (b.dataset.tab === 'videos') cargarVideos();
   }));
 
   // ===================== INSCRITOS =====================
@@ -447,6 +459,10 @@
     caja.innerHTML = '<div class="vacio">Cargando…</div>';
     const r = await sb.from('cad_actividades').select('id, titulo, fecha, lugar, descripcion, cad_fotos(id, ruta, orden)').order('fecha', { ascending: false }).order('id', { ascending: false });
     if (r.error) { caja.innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+    TOTAL_FOTOS = r.data.reduce((s, a) => s + (a.cad_fotos || []).length, 0);
+    const cupo = $('cupoFotos');
+    cupo.textContent = `${TOTAL_FOTOS} de ${MAX_FOTOS} fotos`;
+    cupo.classList.toggle('lleno', TOTAL_FOTOS >= MAX_FOTOS);
     if (!r.data.length) { caja.innerHTML = '<div class="tarjeta vacio">Todavía no hay actividades. Crea la primera arriba.</div>'; return; }
     caja.innerHTML = r.data.map((a) => {
       const fotos = (a.cad_fotos || []).sort((x, y) => x.orden - y.orden || x.id - y.id);
@@ -502,8 +518,14 @@
     const caja = e.target.closest('.actividad');
     const actId = +caja.dataset.id;
     const prog = caja.querySelector('.progreso');
-    const archivos = [...e.target.files];
+    let archivos = [...e.target.files];
     e.target.value = '';
+    const libres = MAX_FOTOS - TOTAL_FOTOS;
+    if (libres <= 0) { alert(`Ya hay ${MAX_FOTOS} fotos en total. Borra alguna (con la ✕) para subir otra.`); return; }
+    if (archivos.length > libres) {
+      alert(`Solo quedan ${libres} espacio(s) de ${MAX_FOTOS}. Se subirán las primeras ${libres} foto(s).`);
+      archivos = archivos.slice(0, libres);
+    }
     let bien = 0; const fallos = [];
     for (let i = 0; i < archivos.length; i++) {
       prog.textContent = `Subiendo ${i + 1} de ${archivos.length}…`;
@@ -516,7 +538,8 @@
         if (ins.error) { await sb.storage.from(BUCKET).remove([ruta]); throw ins.error; }
         bien++;
       } catch (err) {
-        fallos.push(archivos[i].name + (err.message === 'formato' ? ' (formato no soportado; usa JPG o PNG)' : ''));
+        const m = err && err.message || '';
+        fallos.push(archivos[i].name + (m === 'formato' ? ' (formato no soportado; usa JPG o PNG)' : /LIMITE/.test(m) ? ' (ya hay 10 fotos)' : ''));
       }
     }
     prog.textContent = '';
@@ -546,48 +569,145 @@
   });
 
   // ===================== VIDEOS =====================
+  const urlVideo = (ruta) => sb.storage.from(BUCKET_VIDEOS).getPublicUrl(ruta).data.publicUrl;
   function idYouTube(url) {
     const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
     return m ? m[1] : null;
   }
-  const esFacebook = (url) => /^https?:\/\/(www\.|m\.|web\.)?(facebook\.com|fb\.watch)\//i.test(url);
-  const esArchivo = (url) => /^videos\/[^\s]+\.(mp4|webm|mov|m4v)$/i.test(url);
 
   async function cargarVideos() {
     const caja = $('listaVideos');
     caja.innerHTML = '<div class="vacio">Cargando…</div>';
     const r = await sb.from('cad_videos').select('*').order('orden').order('id');
     if (r.error) { caja.innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+    TOTAL_VIDEOS = r.data.length;
+    const cupo = $('cupoVideos');
+    cupo.textContent = `${TOTAL_VIDEOS} de ${MAX_VIDEOS} videos`;
+    cupo.classList.toggle('lleno', TOTAL_VIDEOS >= MAX_VIDEOS);
+    $('btnVideo').disabled = TOTAL_VIDEOS >= MAX_VIDEOS;
     if (!r.data.length) { caja.innerHTML = '<div class="vacio">Todavía no hay videos.</div>'; return; }
     caja.innerHTML = r.data.map((v, i) => {
       const yt = idYouTube(v.url);
-      const img = yt ? `<img src="https://img.youtube.com/vi/${yt}/mqdefault.jpg" alt="">` : `<div class="sin-img">${esFacebook(v.url) ? 'f' : '▶'}</div>`;
-      return `<div class="video-fila" data-id="${v.id}" data-orden="${v.orden}">
+      const img = v.poster ? `<img src="${esc(v.poster)}" alt="">`
+        : yt ? `<img src="https://img.youtube.com/vi/${yt}/mqdefault.jpg" alt="">` : '<div class="sin-img">▶</div>';
+      return `<div class="video-fila" data-id="${v.id}" data-orden="${v.orden}" data-ruta="${esc(v.ruta || '')}" data-ruta-poster="${esc(v.ruta_poster || '')}">
         ${img}
-        <div><b>${esc(v.titulo)}</b><div class="url">${esc(v.url)}</div></div>
+        <div><b>${esc(v.titulo)}</b><div class="url">${v.ruta ? '🎥 Video subido' : esc(v.url)}</div></div>
         <div class="acciones">
           <button class="btn claro chico subirV" type="button" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
           <button class="btn claro chico bajarV" type="button" ${i === r.data.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-          <button class="btn rojo chico borrarV" type="button" title="Quitar">✕</button>
+          <button class="btn rojo chico borrarV" type="button" title="Borrar video">✕ Borrar</button>
         </div></div>`;
     }).join('');
   }
 
-  $('formVideo').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const url = $('vUrl').value.trim();
-    if (!idYouTube(url) && !esFacebook(url) && !esArchivo(url)) {
-      aviso($('msgVideo'), 'El enlace debe ser de YouTube o de Facebook (por ejemplo: https://youtu.be/...).');
+  // Al escoger el video: mostrar el peso y revisar si este navegador lo puede reproducir
+  let videoListo = null;   // { archivo, portada (Blob o null), reproducible }
+  function revisarVideo(archivo) {
+    return new Promise((ok) => {
+      const url = URL.createObjectURL(archivo);
+      const v = document.createElement('video');
+      v.muted = true; v.playsInline = true; v.preload = 'auto';
+      let listo = false;
+      const fin = (portada, reproducible) => { if (listo) return; listo = true; URL.revokeObjectURL(url); ok({ portada, reproducible, duracion: v.duration || 0 }); };
+      v.onerror = () => fin(null, false);
+      v.onloadeddata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 3); };
+      v.onseeked = () => {
+        try {
+          const ancho = Math.min(1280, v.videoWidth || 1280);
+          const escala = ancho / (v.videoWidth || ancho);
+          const c = document.createElement('canvas');
+          c.width = Math.round((v.videoWidth || 1280) * escala); c.height = Math.round((v.videoHeight || 720) * escala);
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          c.toBlob((b) => fin(b, true), 'image/jpeg', 0.8);
+        } catch (e) { fin(null, true); }
+      };
+      setTimeout(() => fin(null, v.readyState >= 2), 15000);
+      v.src = url;
+    });
+  }
+
+  $('vArchivo').addEventListener('change', async () => {
+    const archivo = $('vArchivo').files[0];
+    videoListo = null;
+    aviso($('msgVideo'), '');
+    if (!archivo) { $('vInfo').textContent = ''; return; }
+    const mb = archivo.size / MB;
+    $('vInfo').innerHTML = `<b>${esc(archivo.name)}</b> · ${mb.toFixed(1)} MB · revisando…`;
+    if (mb > MAX_MB_VIDEO) {
+      $('vInfo').innerHTML = `<b>${esc(archivo.name)}</b> · ${mb.toFixed(1)} MB`;
+      aviso($('msgVideo'), `Este video pesa ${mb.toFixed(1)} MB y el máximo es ${MAX_MB_VIDEO} MB. Grábalo en 720p, córtalo, o mándalo para comprimirlo.`);
+      $('vArchivo').value = '';
       return;
     }
-    const btn = $('btnVideo'); btn.disabled = true;
-    const max = await sb.from('cad_videos').select('orden').order('orden', { ascending: false }).limit(1);
-    const orden = max.data && max.data.length ? max.data[0].orden + 1 : 1;
-    const { error } = await sb.from('cad_videos').insert({ titulo: $('vTitulo').value.trim(), url, orden });
-    btn.disabled = false;
-    if (error) { aviso($('msgVideo'), mensajeError(error)); return; }
-    aviso($('msgVideo'), 'Video agregado.', true);
-    $('vUrl').value = ''; $('vTitulo').value = '';
+    const info = await revisarVideo(archivo);
+    videoListo = { archivo, ...info };
+    let texto = `<b>${esc(archivo.name)}</b> · ${mb.toFixed(1)} MB`;
+    if (info.duracion) texto += ` · ${Math.floor(info.duracion / 60)}:${String(Math.round(info.duracion % 60)).padStart(2, '0')} min`;
+    $('vInfo').innerHTML = texto + (info.portada ? ' · ✅ portada lista' : '');
+    if (!info.reproducible) {
+      aviso($('msgVideo'), '⚠️ Este navegador no puede reproducir este video. Puede ser formato HEVC de iPhone: muchas personas no lo podrían ver. Mejor grábalo en "Más compatible" (Ajustes → Cámara → Formatos).');
+    } else if (mb > AVISO_MB_VIDEO) {
+      aviso($('msgVideo'), `⚠️ Este video pesa ${mb.toFixed(1)} MB. Se puede subir, pero gasta muchos datos del plan gratis cada vez que alguien lo ve. Si puedes, usa uno más liviano.`);
+    }
+  });
+
+  // Subir con barra de progreso
+  function subirConProgreso(bucket, ruta, archivo, tipo, alAvanzar) {
+    return new Promise(async (ok, mal) => {
+      const { data } = await sb.auth.getSession();
+      const token = data && data.session && data.session.access_token;
+      if (!token) { mal(new Error('Tu sesión se cerró. Vuelve a entrar.')); return; }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/${bucket}/${ruta}`);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+      xhr.setRequestHeader('apikey', SUPABASE_KEY);
+      xhr.setRequestHeader('Content-Type', tipo);
+      xhr.setRequestHeader('cache-control', 'max-age=31536000');
+      xhr.setRequestHeader('x-upsert', 'false');
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) alAvanzar(e.loaded / e.total); };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? ok() : mal(new Error(xhr.status === 413 ? 'El video es muy pesado para el servidor.' : 'No se pudo subir (' + xhr.status + '): ' + xhr.responseText.slice(0, 150)));
+      xhr.onerror = () => mal(new Error('Se cortó la conexión mientras subía. Intenta de nuevo con buena señal.'));
+      xhr.send(archivo);
+    });
+  }
+
+  $('formVideo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (TOTAL_VIDEOS >= MAX_VIDEOS) { aviso($('msgVideo'), `Ya hay ${MAX_VIDEOS} videos. Borra uno para subir otro.`); return; }
+    if (!videoListo) { aviso($('msgVideo'), 'Primero escoge un video.'); return; }
+    if (!videoListo.reproducible && !confirm('Este navegador no puede reproducir el video. Puede que mucha gente no lo vea. ¿Subirlo de todas formas?')) return;
+    const { archivo, portada } = videoListo;
+    const ext = (archivo.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const base = `video-${Date.now()}`;
+    const ruta = `${base}.${ext}`;
+    const tipo = archivo.type || (ext === 'mov' ? 'video/quicktime' : ext === 'webm' ? 'video/webm' : 'video/mp4');
+    const btn = $('btnVideo'); btn.disabled = true; btn.textContent = 'Subiendo… no cierres la página';
+    $('vBarra').classList.remove('oculto');
+    const pinta = (f) => { const p = Math.round(f * 100); $('vRelleno').style.width = p + '%'; $('vPorc').textContent = p + '%'; };
+    pinta(0);
+    let rutaPoster = '';
+    try {
+      await subirConProgreso(BUCKET_VIDEOS, ruta, archivo, tipo, pinta);
+      if (portada) {
+        rutaPoster = `${base}-portada.jpg`;
+        const up = await sb.storage.from(BUCKET_VIDEOS).upload(rutaPoster, portada, { contentType: 'image/jpeg', cacheControl: '31536000' });
+        if (up.error) rutaPoster = '';
+      }
+      const max = await sb.from('cad_videos').select('orden').order('orden', { ascending: false }).limit(1);
+      const orden = max.data && max.data.length ? max.data[0].orden + 1 : 1;
+      const ins = await sb.from('cad_videos').insert({
+        titulo: $('vTitulo').value.trim(), url: urlVideo(ruta), ruta,
+        poster: rutaPoster ? urlVideo(rutaPoster) : '', ruta_poster: rutaPoster, orden,
+      });
+      if (ins.error) { await sb.storage.from(BUCKET_VIDEOS).remove([ruta, rutaPoster].filter(Boolean)); throw ins.error; }
+      aviso($('msgVideo'), '✅ Video subido. Ya aparece en la página.', true);
+      $('vTitulo').value = ''; $('vArchivo').value = ''; $('vInfo').textContent = ''; videoListo = null;
+    } catch (err) {
+      aviso($('msgVideo'), /LIMITE/.test(err.message || '') ? `Ya hay ${MAX_VIDEOS} videos. Borra uno para subir otro.` : mensajeError(err));
+    }
+    $('vBarra').classList.add('oculto');
+    btn.textContent = 'Subir video';
     cargarVideos();
   });
 
@@ -596,7 +716,10 @@
     if (!fila) return;
     const id = +fila.dataset.id;
     if (e.target.classList.contains('borrarV')) {
-      if (!confirm('¿Quitar este video de la página?')) return;
+      const titulo = fila.querySelector('b').textContent;
+      if (!confirm(`¿Borrar el video "${titulo}"?\n\nSe quita de la página y se libera el espacio. No se puede deshacer.`)) return;
+      const rutas = [fila.dataset.ruta, fila.dataset.rutaPoster].filter(Boolean);
+      if (rutas.length) await sb.storage.from(BUCKET_VIDEOS).remove(rutas);
       const { error } = await sb.from('cad_videos').delete().eq('id', id);
       if (error) { alert(mensajeError(error)); return; }
       cargarVideos();

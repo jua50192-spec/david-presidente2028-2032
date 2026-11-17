@@ -478,6 +478,7 @@
   lista.forEach((item, i) => {
     const url = typeof item === 'string' ? item : (item.url || '');
     const titulo = typeof item === 'string' ? '' : (item.titulo || '');
+    const portada = typeof item === 'string' ? '' : (item.poster || '');
     const src = enlaceParaInsertar(url);
     if (src === 'archivo') {
       const figura = document.createElement('figure');
@@ -487,7 +488,8 @@
       const v = document.createElement('video');
       // Si no encuentra el video, prueba con la terminación repetida (ej. "verificate.mp4.mp4")
       const ext = url.slice(url.lastIndexOf('.'));
-      const opciones = [url, url + ext, url + ext.toUpperCase(), url.replace(ext, ext.toUpperCase())];
+      // Los videos del panel (https://…) tienen su nombre exacto; los de la carpeta videos/ pueden tener el .mp4 repetido
+      const opciones = /^https?:/i.test(url) ? [url] : [url, url + ext, url + ext.toUpperCase(), url.replace(ext, ext.toUpperCase())];
       let intento = 0;
       v.addEventListener('error', () => {
         intento++;
@@ -496,8 +498,14 @@
       v.src = opciones[0];
       v.controls = true;
       v.playsInline = true;
-      v.preload = 'metadata';
-      v.poster = url.replace(/\.[^.]+$/, '.jpg'); // imagen de portada con el mismo nombre (opcional)
+      if (portada) {
+        // Video del panel: se muestra la portada y el video solo se descarga al darle play (ahorra datos)
+        v.poster = portada;
+        v.preload = 'none';
+      } else {
+        v.preload = 'metadata';
+        v.poster = url.replace(/\.[^.]+$/, '.jpg'); // imagen de portada con el mismo nombre (opcional)
+      }
       caja.appendChild(v);
       figura.appendChild(caja);
       if (titulo) {
@@ -559,7 +567,7 @@
   }
 
   // Videos del panel: van primero, después los fijos
-  leerPanel('cad_videos?select=titulo,url,orden&order=orden.asc,id.asc')
+  leerPanel('cad_videos?select=titulo,url,poster,orden&order=orden.asc,id.asc')
     .then((lista) => { if (lista.length) dibujarVideos([...lista, ...VIDEOS_FIJOS]); })
     .catch(() => {});   // si falla, se quedan los videos fijos
 
