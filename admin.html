@@ -194,7 +194,11 @@
           <div><label for="aFecha">Fecha</label><input type="date" id="aFecha" required></div>
           <div><label for="aLugar">Lugar</label><input type="text" id="aLugar" maxlength="120" placeholder="Ej.: Villa Juana"></div>
           <div class="todo"><label for="aDesc">Descripción (opcional)</label><textarea id="aDesc" maxlength="600"></textarea></div>
-          <div class="todo"><button class="btn" type="submit" id="btnActividad" style="margin-top:14px">Guardar actividad</button></div>
+          <div class="todo"><label>Fotos de la actividad <span class="cupo" id="cupoFotos2"></span></label>
+            <label class="btn claro subir">📷 Escoger fotos<input type="file" id="aFotos" accept="image/*" multiple></label>
+            <div id="aFotosInfo" class="contador">Puedes escoger varias a la vez. Después también puedes agregar más desde la lista de abajo.</div></div>
+          <div class="todo"><button class="btn" type="submit" id="btnActividad" style="margin-top:14px">Guardar actividad y subir fotos</button>
+            <span class="progreso" id="aProgreso" style="margin-left:10px"></span></div>
         </form>
         <div id="msgActividad"></div>
       </div>
@@ -463,6 +467,8 @@
     const cupo = $('cupoFotos');
     cupo.textContent = `${TOTAL_FOTOS} de ${MAX_FOTOS} fotos`;
     cupo.classList.toggle('lleno', TOTAL_FOTOS >= MAX_FOTOS);
+    $('cupoFotos2').textContent = cupo.textContent;
+    $('cupoFotos2').className = cupo.className;
     if (!r.data.length) { caja.innerHTML = '<div class="tarjeta vacio">Todavía no hay actividades. Crea la primera arriba.</div>'; return; }
     caja.innerHTML = r.data.map((a) => {
       const fotos = (a.cad_fotos || []).sort((x, y) => x.orden - y.orden || x.id - y.id);
@@ -475,23 +481,37 @@
         </div>
         <div class="fotos">${fotos.map((f) => `<div class="foto" data-foto="${f.id}" data-ruta="${esc(f.ruta)}"><img src="${esc(urlFoto(f.ruta))}" loading="lazy" alt=""><button type="button" class="borrarFoto" title="Quitar foto">✕</button></div>`).join('')}</div>
         <div class="acciones">
-          <label class="btn claro chico subir">📷 Agregar fotos<input type="file" accept="image/*" multiple class="elegirFotos"></label>
+          <label class="btn chico subir">📷 Agregar más fotos a esta actividad<input type="file" accept="image/*" multiple class="elegirFotos"></label>
           <span class="progreso"></span>
         </div>
       </div>`;
     }).join('');
   }
 
+  $('aFotos').addEventListener('change', () => {
+    const n = $('aFotos').files.length;
+    const libres = Math.max(0, MAX_FOTOS - TOTAL_FOTOS);
+    $('aFotosInfo').innerHTML = n ? `<b>${n} foto(s) escogida(s).</b>` + (n > libres ? ` Solo quedan ${libres} espacio(s): se subirán las primeras ${libres}.` : '') : '';
+  });
+
   $('formActividad').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $('btnActividad'); btn.disabled = true;
-    const { error } = await sb.from('cad_actividades').insert({
+    const { data, error } = await sb.from('cad_actividades').insert({
       titulo: $('aTitulo').value.trim(), fecha: $('aFecha').value, lugar: $('aLugar').value.trim(), descripcion: $('aDesc').value.trim(),
-    });
+    }).select('id').single();
+    if (error) { btn.disabled = false; aviso($('msgActividad'), mensajeError(error)); return; }
+    const archivos = [...$('aFotos').files];
+    let texto = 'Actividad guardada.';
+    if (archivos.length) {
+      const r = await subirFotos(data.id, archivos, $('aProgreso'));
+      texto += ` Se subieron ${r.bien} foto(s).` + (r.fallos.length ? ` No se pudieron subir: ${r.fallos.join(', ')}.` : '');
+    } else {
+      texto += ' Ahora agrégale fotos con el botón "📷 Agregar más fotos" de la lista de abajo (si no tiene fotos, no se muestra en la página).';
+    }
     btn.disabled = false;
-    if (error) { aviso($('msgActividad'), mensajeError(error)); return; }
-    aviso($('msgActividad'), 'Actividad guardada. Ahora agrégale fotos abajo.', true);
-    $('aTitulo').value = ''; $('aLugar').value = ''; $('aDesc').value = '';
+    aviso($('msgActividad'), texto, true);
+    $('aTitulo').value = ''; $('aLugar').value = ''; $('aDesc').value = ''; $('aFotos').value = ''; $('aFotosInfo').textContent = '';
     cargarActividades();
   });
 
@@ -518,10 +538,16 @@
     const caja = e.target.closest('.actividad');
     const actId = +caja.dataset.id;
     const prog = caja.querySelector('.progreso');
-    let archivos = [...e.target.files];
+    const archivos = [...e.target.files];
     e.target.value = '';
+    const r = await subirFotos(actId, archivos, prog);
+    if (r.fallos.length) alert(`Se subieron ${r.bien} foto(s).\nNo se pudieron subir:\n- ${r.fallos.join('\n- ')}`);
+    cargarActividades();
+  });
+
+  async function subirFotos(actId, archivos, prog) {
     const libres = MAX_FOTOS - TOTAL_FOTOS;
-    if (libres <= 0) { alert(`Ya hay ${MAX_FOTOS} fotos en total. Borra alguna (con la ✕) para subir otra.`); return; }
+    if (libres <= 0) { alert(`Ya hay ${MAX_FOTOS} fotos en total. Borra alguna (con la ✕) para subir otra.`); return { bien: 0, fallos: [] }; }
     if (archivos.length > libres) {
       alert(`Solo quedan ${libres} espacio(s) de ${MAX_FOTOS}. Se subirán las primeras ${libres} foto(s).`);
       archivos = archivos.slice(0, libres);
@@ -543,9 +569,9 @@
       }
     }
     prog.textContent = '';
-    if (fallos.length) alert(`Se subieron ${bien} foto(s).\nNo se pudieron subir:\n- ${fallos.join('\n- ')}`);
-    cargarActividades();
-  });
+    TOTAL_FOTOS += bien;
+    return { bien, fallos };
+  }
 
   $('listaActividades').addEventListener('click', async (e) => {
     if (e.target.classList.contains('borrarFoto')) {
