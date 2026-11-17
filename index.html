@@ -129,6 +129,8 @@
   /* Galería */
   /* Actividades del panel */
   .oculto-panel { display: none !important; }
+  .mas-fotos { color: var(--azul); font-size: 1.1rem; text-align: center; margin: 30px 0 16px; }
+  #galeriaFija .foto-act img { cursor: zoom-in; }
   .act-tarjeta { background: var(--blanco); border-radius: 16px; padding: 18px; margin-bottom: 20px; box-shadow: 0 4px 16px rgba(11,61,145,.08); }
   .act-cab h3 { color: var(--azul); font-size: 1.15rem; margin-bottom: 2px; }
   .act-meta { color: var(--gris); font-size: .88rem; font-weight: 600; }
@@ -320,6 +322,7 @@
     <h2>Actividades</h2>
     <p class="subtitulo">Nuestro trabajo en los barrios del Distrito Nacional.</p>
     <div id="actividadesPanel" class="oculto-panel"></div>
+    <h3 class="mas-fotos oculto-panel" id="masFotos">Más fotos de nuestras actividades</h3>
     <div class="galeria" id="galeriaFija">
       <div class="foto-act">
         <img class="foto" data-foto="fotos/actividad1" alt="Actividad 1">
@@ -566,7 +569,7 @@
           </div></article>`;
       }).join('');
       cont.classList.remove('oculto-panel');
-      document.getElementById('galeriaFija').classList.add('oculto-panel');
+      document.getElementById('masFotos').classList.remove('oculto-panel');   // las fotos fijas siguen debajo
     })
     .catch(() => {});   // si falla, se quedan las fotos fijas
 
@@ -582,6 +585,15 @@
     if (!b) return;
     fotosVisor = JSON.parse(b.parentElement.dataset.fotos);
     posVisor = +b.dataset.i;
+    mostrarFoto();
+    visor.classList.add('abierto');
+  });
+  document.getElementById('galeriaFija').addEventListener('click', (e) => {
+    const img = e.target.closest('.foto-act img');
+    if (!img || location.hash === '#editar') return;
+    const todas = [...document.querySelectorAll('#galeriaFija .foto-act img')].filter((i) => i.style.display === 'block');
+    fotosVisor = todas.map((i) => i.src);
+    posVisor = Math.max(0, todas.indexOf(img));
     mostrarFoto();
     visor.classList.add('abierto');
   });
@@ -618,12 +630,16 @@
   }
   function mostrar(img) {
     img.style.display = 'block';
+    const act = img.closest('.foto-act'); if (act) act.style.display = '';
     const caja = cajaDe(img); if (caja) caja.style.display = 'none';
   }
   function ocultar(img) {
     img.style.display = 'none';
     img.removeAttribute('src');
     const caja = cajaDe(img); if (caja) caja.style.display = 'flex';
+    // Fotos de actividades: si no hay foto, se esconde el cuadro (menos en modo edición)
+    const act = img.closest('.foto-act');
+    if (act && location.hash !== '#editar') act.style.display = 'none';
   }
   function cargarFoto(img) {
     const clave = img.dataset.foto.replace('fotos/', '');
