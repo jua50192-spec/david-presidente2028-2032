@@ -163,6 +163,11 @@
   .acepto input { width: auto; margin-top: 4px; }
   form .btn { width: 100%; margin-top: 22px; }
   .mensaje { display: none; margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--azul-claro); color: var(--azul); font-weight: 600; text-align: center; }
+  .tel-fila { display: flex; align-items: stretch; }
+  .prefijo { display: flex; align-items: center; padding: 0 12px; background: var(--azul-claro); color: var(--azul); font-weight: 700; border: 2px solid #cfd8e8; border-right: none; border-radius: 10px 0 0 10px; }
+  .prefijo:not(.oculto-panel) + input { border-radius: 0 10px 10px 0; }
+  .ayuda-campo { display: block; color: var(--gris); font-size: .78rem; margin-top: 4px; }
+  #pais { width: 100%; }
   .mensaje.error { background: #fdecec; color: #b42318; }
   .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   .cf-turnstile { margin-top: 18px; min-height: 65px; }
@@ -263,10 +268,45 @@
         <label for="cedula">Cédula</label>
         <input type="text" id="cedula" inputmode="numeric" placeholder="000-0000000-0" maxlength="13" pattern="\d{3}-\d{7}-\d{1}" title="Escribe los 11 números de la cédula" required>
 
-        <label for="telefono">Teléfono / WhatsApp</label>
-        <input type="tel" id="telefono" inputmode="numeric" placeholder="809-000-0000" maxlength="12" pattern="(809|829|849)-\d{3}-\d{4}" title="Teléfono de 10 números que empiece con 809, 829 o 849" required>
+        <label for="pais">País donde vives</label>
+        <select id="pais" required>
+          <option value="República Dominicana" data-codigo="+1">República Dominicana</option>
+          <option value="Estados Unidos" data-codigo="+1">Estados Unidos</option>
+          <option value="Puerto Rico" data-codigo="+1">Puerto Rico</option>
+          <option value="España" data-codigo="+34">España</option>
+          <option value="Italia" data-codigo="+39">Italia</option>
+          <option value="Suiza" data-codigo="+41">Suiza</option>
+          <option value="Canadá" data-codigo="+1">Canadá</option>
+          <option value="Panamá" data-codigo="+507">Panamá</option>
+          <option value="Francia" data-codigo="+33">Francia</option>
+          <option value="Alemania" data-codigo="+49">Alemania</option>
+          <option value="Países Bajos" data-codigo="+31">Países Bajos</option>
+          <option value="Venezuela" data-codigo="+58">Venezuela</option>
+          <option value="Chile" data-codigo="+56">Chile</option>
+          <option value="Argentina" data-codigo="+54">Argentina</option>
+          <option value="México" data-codigo="+52">México</option>
+          <option value="Colombia" data-codigo="+57">Colombia</option>
+          <option value="Costa Rica" data-codigo="+506">Costa Rica</option>
+          <option value="Aruba" data-codigo="+297">Aruba</option>
+          <option value="Curazao" data-codigo="+599">Curazao</option>
+          <option value="Islas Vírgenes de EE. UU." data-codigo="+1">Islas Vírgenes de EE. UU.</option>
+          <option value="Reino Unido" data-codigo="+44">Reino Unido</option>
+          <option value="Bélgica" data-codigo="+32">Bélgica</option>
+          <option value="Suecia" data-codigo="+46">Suecia</option>
+          <option value="Otro país" data-codigo="+">Otro país</option>
+        </select>
+        <div id="cajaOtroPais" class="oculto-panel">
+          <label for="otroPais">¿En cuál país?</label>
+          <input type="text" id="otroPais" maxlength="60" placeholder="Escribe el país">
+        </div>
 
-        <label for="sector">Sector o barrio</label>
+        <label for="telefono">Teléfono / WhatsApp</label>
+        <div class="tel-fila"><span class="prefijo oculto-panel" id="prefijoTel">+1</span>
+        <input type="tel" id="telefono" inputmode="tel" placeholder="809-000-0000" maxlength="20" pattern="(809|829|849)-\d{3}-\d{4}" title="Teléfono de 10 números que empiece con 809, 829 o 849" required>
+        </div>
+        <small class="ayuda-campo" id="ayudaTel">Teléfono de República Dominicana: 809, 829 u 849.</small>
+
+        <label for="sector" id="etiquetaSector">Sector o barrio</label>
         <input type="text" id="sector" maxlength="120" required>
 
         <label class="acepto">
@@ -761,16 +801,72 @@
   const mensaje = document.getElementById('mensaje');
   const inicioFormulario = Date.now();
 
-  // Teléfono: pone los guiones solos (809-000-0000)
+  // ---------- País y teléfono ----------
   const campoTel = document.getElementById('telefono');
+  const campoPais = document.getElementById('pais');
+  const campoOtroPais = document.getElementById('otroPais');
+  const esRD = () => campoPais.value === 'República Dominicana';
+  function codigoPais() {
+    const op = campoPais.options[campoPais.selectedIndex];
+    return op ? op.dataset.codigo : '+1';
+  }
+  const prefijo = document.getElementById('prefijoTel');
+  function cambiarPais() {
+    const otro = campoPais.value === 'Otro país';
+    const cod = codigoPais();
+    document.getElementById('cajaOtroPais').classList.toggle('oculto-panel', !otro);
+    campoOtroPais.required = otro;
+    campoTel.value = '';
+    if (esRD()) {
+      prefijo.classList.add('oculto-panel');
+      campoTel.placeholder = '809-000-0000';
+      campoTel.pattern = '(809|829|849)-\\d{3}-\\d{4}';
+      campoTel.title = 'Teléfono de 10 números que empiece con 809, 829 o 849';
+      campoTel.inputMode = 'numeric';
+      document.getElementById('ayudaTel').textContent = 'Teléfono de República Dominicana: 809, 829 u 849.';
+      document.getElementById('etiquetaSector').textContent = 'Sector o barrio';
+    } else if (otro) {
+      prefijo.classList.add('oculto-panel');
+      campoTel.placeholder = '+56 9 1234 5678';
+      campoTel.pattern = '\\+\\d[\\d ]{6,18}';
+      campoTel.title = 'Escribe el número con el código del país, empezando con +';
+      campoTel.inputMode = 'tel';
+      document.getElementById('ayudaTel').textContent = 'Con el código del país, empezando con + (ej.: +56 9 1234 5678).';
+      document.getElementById('etiquetaSector').textContent = 'Ciudad';
+    } else {
+      prefijo.textContent = cod;
+      prefijo.classList.remove('oculto-panel');
+      campoTel.placeholder = cod === '+1' ? '212 555 1234' : '612 345 678';
+      campoTel.pattern = '[\\d ]{6,16}';
+      campoTel.title = 'Escribe tu número sin el código del país';
+      campoTel.inputMode = 'numeric';
+      document.getElementById('ayudaTel').textContent = `El código ${cod} ya está puesto. Escribe solo tu número.`;
+      document.getElementById('etiquetaSector').textContent = 'Ciudad';
+    }
+  }
+  campoPais.addEventListener('change', cambiarPais);
+
   campoTel.addEventListener('input', () => {
-    // En RD ningún teléfono empieza con 1: si escriben "1-809…" se quita el 1
-    let n = campoTel.value.replace(/\D/g, '').replace(/^1+/, '').slice(0, 10);
-    let t = n.slice(0, 3);
-    if (n.length > 3) t += '-' + n.slice(3, 6);
-    if (n.length > 6) t += '-' + n.slice(6);
-    campoTel.value = t;
+    if (esRD()) {
+      // RD: pone los guiones solos (809-000-0000). En RD ningún teléfono empieza con 1.
+      let n = campoTel.value.replace(/\D/g, '').replace(/^1+/, '').slice(0, 10);
+      let t = n.slice(0, 3);
+      if (n.length > 3) t += '-' + n.slice(3, 6);
+      if (n.length > 6) t += '-' + n.slice(6);
+      campoTel.value = t;
+    } else if (campoPais.value === 'Otro país') {
+      // Otro país: siempre empieza con "+", solo números y espacios
+      const v = campoTel.value.replace(/[^\d ]/g, ' ').replace(/\s+/g, ' ').trimStart();
+      campoTel.value = '+' + v.slice(0, 19);
+    } else {
+      // País con código fijo: solo números y espacios
+      campoTel.value = campoTel.value.replace(/[^\d ]/g, '').replace(/\s+/g, ' ').trimStart().slice(0, 16);
+    }
   });
+  function telefonoCompleto() {
+    if (esRD() || campoPais.value === 'Otro país') return campoTel.value;
+    return codigoPais() + ' ' + campoTel.value.trim();
+  }
 
   function avisar(texto, esError) {
     mensaje.textContent = texto;
@@ -782,7 +878,7 @@
     ok:        ['✅ ¡Gracias! Ya eres parte del equipo. Pronto te contactaremos.', false],
     duplicado: ['Esta cédula ya está inscrita. ¡Ya eres parte del equipo!', true],
     limite:    ['Se han hecho muchos envíos desde esta conexión. Intenta de nuevo en una hora.', true],
-    datos:     ['Revisa los datos: nombre y apellido, cédula de 11 números y teléfono que empiece con 809, 829 u 849.', true],
+    datos:     ['Revisa los datos: nombre y apellido, cédula de 11 números, y el teléfono (en RD: 809, 829 u 849; fuera de RD: con el código del país).', true],
     robot:     ['No pudimos confirmar que no eres un robot. Espera la verificación y vuelve a intentarlo.', true],
     error:     ['Hubo un problema al guardar. Intenta de nuevo en unos minutos.', true],
   };
@@ -804,7 +900,8 @@
         body: JSON.stringify({
           nombre: document.getElementById('nombre').value,
           cedula: document.getElementById('cedula').value,
-          telefono: campoTel.value,
+          telefono: telefonoCompleto(),
+          pais: campoPais.value === 'Otro país' ? campoOtroPais.value.trim() : campoPais.value,
           sector: document.getElementById('sector').value,
           sitio_web: document.getElementById('sitio_web').value,
           t: Date.now() - inicioFormulario,
@@ -818,7 +915,7 @@
     }
     const [texto, esError] = RESPUESTAS[r] || RESPUESTAS.error;
     avisar(texto, esError);
-    if (r === 'ok') formulario.reset();
+    if (r === 'ok') { formulario.reset(); cambiarPais(); }
     if (window.turnstile) turnstile.reset();   // cada verificación sirve una sola vez
     btnEnviar.disabled = false;
     btnEnviar.textContent = 'Quiero sumarme';
