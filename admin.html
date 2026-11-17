@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel CAD – Administración</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul: #0b3d91; --azul-oscuro: #072a66; --azul-claro: #e8f0fc;
+    --blanco: #fff; --texto: #1c2433; --gris: #6b7588; --borde: #d5dded;
+    --verde: #1a7f37; --rojo: #b42318; --amarillo: #fff4d6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Montserrat', Arial, sans-serif; color: var(--texto); background: #f3f6fb; line-height: 1.45; }
+  button, input, select, textarea { font-family: inherit; font-size: 1rem; }
+  .oculto { display: none !important; }
+  .contenedor { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+  /* Entrada */
+  #pantallaEntrar { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: linear-gradient(135deg, var(--azul), var(--azul-oscuro)); }
+  .caja-entrar { background: #fff; width: 100%; max-width: 380px; border-radius: 18px; padding: 30px 24px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  .caja-entrar h1 { color: var(--azul); font-size: 1.4rem; margin-bottom: 4px; }
+  .caja-entrar p { color: var(--gris); font-size: .9rem; margin-bottom: 18px; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 12px 0 6px; }
+  input[type=text], input[type=password], input[type=date], input[type=url], input[type=search], select, textarea {
+    width: 100%; padding: 11px 12px; border: 2px solid var(--borde); border-radius: 10px; background: #fff; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); }
+  textarea { min-height: 70px; resize: vertical; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 30px; padding: 11px 20px; font-weight: 700; cursor: pointer; background: var(--azul); color: #fff; }
+  .btn:hover { background: var(--azul-oscuro); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn.claro { background: var(--azul-claro); color: var(--azul); }
+  .btn.claro:hover { background: #d6e3f8; }
+  .btn.rojo { background: #fdecec; color: var(--rojo); }
+  .btn.rojo:hover { background: #f9d4d4; }
+  .btn.verde { background: var(--verde); }
+  .btn.chico { padding: 6px 12px; font-size: .85rem; }
+  .ancho { width: 100%; margin-top: 18px; }
+  .error { background: #fdecec; color: var(--rojo); border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: .9rem; font-weight: 600; }
+  .ok { background: #e6f4ea; color: var(--verde); border-radius: 10px; padding: 10px 12px; margin-top: 10px; font-size: .9rem; font-weight: 600; }
+
+  /* Encabezado */
+  header { background: var(--azul); color: #fff; position: sticky; top: 0; z-index: 10; }
+  .barra { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 60px; flex-wrap: wrap; padding: 8px 0; }
+  .marca { font-weight: 800; }
+  .marca small { display: block; font-weight: 600; opacity: .8; font-size: .75rem; }
+  .usuario { display: flex; align-items: center; gap: 10px; font-size: .85rem; }
+  .usuario .btn { background: rgba(255,255,255,.15); padding: 7px 14px; font-size: .85rem; }
+  .pestanas { display: flex; gap: 4px; overflow-x: auto; }
+  .pestanas button { background: none; border: none; color: #fff; opacity: .75; padding: 12px 16px; font-weight: 700; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .pestanas button.activa { opacity: 1; border-bottom-color: #fff; }
+
+  main { padding: 24px 0 60px; }
+  h2 { color: var(--azul); font-size: 1.3rem; margin-bottom: 14px; }
+  h3 { color: var(--azul); font-size: 1.05rem; margin-bottom: 10px; }
+  .tarjeta { background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 2px 10px rgba(11,61,145,.06); margin-bottom: 18px; }
+
+  /* Cifras */
+  .cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .cifra { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 10px rgba(11,61,145,.06); }
+  .cifra b { display: block; font-size: 2rem; color: var(--azul); line-height: 1.1; }
+  .cifra span { color: var(--gris); font-size: .85rem; font-weight: 600; }
+  .cifra.alerta b { color: #b54708; }
+  .dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 800px) { .dos-col { grid-template-columns: 1fr; } }
+  .barra-fila { display: grid; grid-template-columns: minmax(90px, 40%) 1fr 40px; align-items: center; gap: 8px; font-size: .85rem; margin-bottom: 6px; }
+  .barra-fila .nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra-fila .fondo { background: var(--azul-claro); border-radius: 6px; height: 14px; overflow: hidden; }
+  .barra-fila .relleno { background: var(--azul); height: 100%; border-radius: 6px; }
+  .barra-fila .n { text-align: right; font-weight: 700; }
+  .vacio { color: var(--gris); font-size: .9rem; padding: 10px 0; }
+
+  /* Lista de inscritos */
+  .filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .filtros input { flex: 1 1 220px; }
+  .filtros select { flex: 0 1 180px; }
+  .tabla-cont { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { text-align: left; color: var(--gris); font-size: .75rem; text-transform: uppercase; letter-spacing: .5px; padding: 8px; border-bottom: 2px solid var(--borde); white-space: nowrap; }
+  td { padding: 9px 8px; border-bottom: 1px solid #edf1f8; vertical-align: middle; }
+  td select { padding: 5px 8px; font-size: .85rem; width: auto; border-width: 1px; }
+  .marca-revisar { display: inline-block; background: var(--amarillo); color: #7a5300; font-size: .7rem; font-weight: 700; border-radius: 8px; padding: 1px 6px; margin-left: 4px; }
+  .wa { color: var(--verde); font-weight: 700; text-decoration: none; margin-left: 6px; }
+  .contador { color: var(--gris); font-size: .85rem; margin-top: 8px; }
+
+  /* Actividades */
+  .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .grid-form .todo { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .grid-form { grid-template-columns: 1fr; } }
+  .actividad { border: 1px solid var(--borde); border-radius: 14px; padding: 14px; margin-bottom: 14px; background: #fff; }
+  .actividad-cab { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+  .actividad-cab .meta { color: var(--gris); font-size: .85rem; }
+  .fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
+  .foto { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--azul-claro); }
+  .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .foto button { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(180,35,24,.9); color: #fff; font-weight: 800; cursor: pointer; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .subir { position: relative; overflow: hidden; }
+  .subir input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .progreso { font-size: .85rem; color: var(--azul); font-weight: 600; }
+
+  /* Videos */
+  .video-fila { display: grid; grid-template-columns: 120px 1fr auto; gap: 12px; align-items: center; border-bottom: 1px solid #edf1f8; padding: 10px 0; }
+  .video-fila img, .video-fila .sin-img { width: 120px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+  .video-fila .url { color: var(--gris); font-size: .78rem; word-break: break-all; }
+  @media (max-width: 560px) { .video-fila { grid-template-columns: 90px 1fr; } .video-fila img, .video-fila .sin-img { width: 90px; } .video-fila .acciones { grid-column: 1 / -1; } }
+
+  .aviso-pie { color: var(--gris); font-size: .78rem; text-align: center; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ===================== ENTRAR ===================== -->
+<section id="pantallaEntrar">
+  <form class="caja-entrar" id="formEntrar">
+    <h1>Panel de administración</h1>
+    <p>yocondavid.com · Comando de Apoyo a David (CAD)</p>
+    <label for="usuario">Usuario</label>
+    <input type="text" id="usuario" autocomplete="username" required>
+    <label for="clave">Clave</label>
+    <input type="password" id="clave" autocomplete="current-password" required>
+    <button class="btn ancho" id="btnEntrar" type="submit">Entrar</button>
+    <div class="error oculto" id="errEntrar"></div>
+  </form>
+</section>
+
+<!-- ===================== PANEL ===================== -->
+<div id="pantallaPanel" class="oculto">
+  <header>
+    <div class="contenedor">
+      <div class="barra">
+        <div class="marca">Panel CAD<small>yocondavid.com</small></div>
+        <div class="usuario"><span id="nombreUsuario"></span><button class="btn" id="btnSalir" type="button">Salir</button></div>
+      </div>
+      <nav class="pestanas">
+        <button type="button" data-tab="inscritos" class="activa">👥 Inscritos</button>
+        <button type="button" data-tab="actividades">📸 Actividades</button>
+        <button type="button" data-tab="videos">🎥 Videos</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="contenedor">
+
+    <!-- ---------- INSCRITOS ---------- -->
+    <section id="tab-inscritos">
+      <div class="cifras">
+        <div class="cifra"><b id="cTotal">–</b><span>Total inscritos</span></div>
+        <div class="cifra"><b id="cHoy">–</b><span>Inscritos hoy</span></div>
+        <div class="cifra"><b id="cSemana">–</b><span>Esta semana</span></div>
+        <div class="cifra alerta"><b id="cRevisar">–</b><span>Por revisar (cédula)</span></div>
+      </div>
+      <div class="dos-col">
+        <div class="tarjeta"><h3>Por sector</h3><div id="porSector"></div></div>
+        <div class="tarjeta"><h3>Por semana</h3><div id="porSemana"></div></div>
+      </div>
+      <div class="tarjeta">
+        <h3>Lista de inscritos</h3>
+        <div class="filtros">
+          <input type="search" id="buscar" placeholder="🔎 Buscar por nombre, cédula, teléfono o sector…">
+          <select id="filtroEstado">
+            <option value="">Todos los estados</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="revisar">Revisar</option>
+            <option value="contactado">Contactado</option>
+            <option value="descartado">Descartado</option>
+          </select>
+          <button class="btn verde" id="btnExcel" type="button">⬇ Descargar Excel</button>
+          <button class="btn claro" id="btnRecargar" type="button">↻ Actualizar</button>
+        </div>
+        <div class="tabla-cont">
+          <table>
+            <thead><tr><th>Fecha</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Sector</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="filas"></tbody>
+          </table>
+        </div>
+        <div class="contador" id="contador"></div>
+      </div>
+    </section>
+
+    <!-- ---------- ACTIVIDADES ---------- -->
+    <section id="tab-actividades" class="oculto">
+      <div class="tarjeta">
+        <h2>Nueva actividad</h2>
+        <form id="formActividad" class="grid-form">
+          <div class="todo"><label for="aTitulo">Título</label><input type="text" id="aTitulo" maxlength="120" placeholder="Ej.: Reunión con coordinadores" required></div>
+          <div><label for="aFecha">Fecha</label><input type="date" id="aFecha" required></div>
+          <div><label for="aLugar">Lugar</label><input type="text" id="aLugar" maxlength="120" placeholder="Ej.: Villa Juana"></div>
+          <div class="todo"><label for="aDesc">Descripción (opcional)</label><textarea id="aDesc" maxlength="600"></textarea></div>
+          <div class="todo"><button class="btn" type="submit" id="btnActividad" style="margin-top:14px">Guardar actividad</button></div>
+        </form>
+        <div id="msgActividad"></div>
+      </div>
+      <h2>Actividades publicadas</h2>
+      <div id="listaActividades"></div>
+    </section>
+
+    <!-- ---------- VIDEOS ---------- -->
+    <section id="tab-videos" class="oculto">
+      <div class="tarjeta">
+        <h2>Agregar video</h2>
+        <form id="formVideo" class="grid-form">
+          <div class="todo"><label for="vUrl">Enlace del video (YouTube o Facebook)</label><input type="text" id="vUrl" placeholder="https://www.youtube.com/watch?v=..." required></div>
+          <div class="todo"><label for="vTitulo">Título</label><input type="text" id="vTitulo" maxlength="120" placeholder="Ej.: Caminata en Cristo Rey" required></div>
+          <div class="todo"><button class="btn" type="submit" id="btnVideo" style="margin-top:14px">Agregar video</button></div>
+        </form>
+        <div id="msgVideo"></div>
+        <p class="contador">Consejo: sube los videos a YouTube (pueden ser "No listados") y pega aquí el enlace. Así no se llena el espacio gratis.</p>
+      </div>
+      <div class="tarjeta">
+        <h2>Videos publicados</h2>
+        <div id="listaVideos"></div>
+      </div>
+    </section>
+
+    <p class="aviso-pie">Los datos de los inscritos son privados. No los compartas fuera de la coordinación.</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  // ===================== CONFIGURACIÓN =====================
+  const SUPABASE_URL = 'https://wgudgnjdmnftrmnroige.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_otl8-8rqa5IDC7mDutj8CQ_UNLFqzi1';           // clave PÚBLICA (publishable). La seguridad la ponen las reglas RLS.
+  const DOMINIO_USUARIOS = '@estructura.app';  // mismo sistema de usuarios de la app "Estructura de apoyo"
+  const BUCKET = 'cad-fotos';
+  const MINUTOS_INACTIVO = 30;
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+  let INSCRITOS = [];
+
+  // ===================== AYUDAS =====================
+  const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const sinAcentos = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const digitos = (t) => String(t || '').replace(/\D/g, '');
+  function correoDe(u) {
+    u = String(u).trim().toLowerCase();
+    return u.includes('@') ? u : u.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9._-]/g, '').slice(0, 60) + DOMINIO_USUARIOS;
+  }
+  function mensajeError(e) {
+    const m = e && e.message ? e.message : String(e || '');
+    if (/fetch|network|Failed/i.test(m)) return 'No hay conexión con el servidor. Revisa el internet.';
+    if (/row-level security|permission|42501/i.test(m)) return 'No tienes permiso para esto. Solo el administrador puede hacerlo.';
+    return m;
+  }
+  function fechaCorta(iso) {
+    return new Date(iso).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo', day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+  function fechaDia(d) {
+    if (!d) return '';
+    const [a, m, dia] = d.split('-');
+    return new Date(+a, +m - 1, +dia).toLocaleDateString('es-DO', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function hoyRD() {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santo_Domingo' });
+  }
+  function aviso(caja, texto, ok) {
+    caja.innerHTML = texto ? `<div class="${ok ? 'ok' : 'error'}">${esc(texto)}</div>` : '';
+  }
+
+  // ===================== ENTRAR / SALIR =====================
+  $('formEntrar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('btnEntrar');
+    btn.disabled = true; btn.textContent = 'Entrando…';
+    $('errEntrar').classList.add('oculto');
+    try {
+      const u = $('usuario').value, c = $('clave').value;
+      const claves = [c];
+      if (digitos(c).length === 11 && digitos(c) !== c) claves.push(digitos(c));   // cédula con o sin guiones
+      let r = null;
+      for (const clave of claves) {
+        r = await sb.auth.signInWithPassword({ email: correoDe(u), password: clave });
+        if (!r.error) break;
+      }
+      if (r.error) throw new Error('Usuario o clave incorrectos.');
+      await entrar();
+    } catch (err) {
+      $('errEntrar').textContent = mensajeError(err);
+      $('errEntrar').classList.remove('oculto');
+    }
+    btn.disabled = false; btn.textContent = 'Entrar';
+  });
+
+  async function entrar() {
+    const { data } = await sb.auth.getSession();
+    const user = data && data.session && data.session.user;
+    if (!user) { mostrarEntrar(); return; }
+    const r = await sb.from('perfiles').select('nombre, rol, activo').eq('id', user.id).maybeSingle();
+    if (r.error || !r.data || !r.data.activo || r.data.rol !== 'admin') {
+      await sb.auth.signOut();
+      mostrarEntrar('Esta cuenta no es de administrador. Solo el administrador puede entrar a este panel.');
+      return;
+    }
+    $('nombreUsuario').textContent = r.data.nombre;
+    $('pantallaEntrar').classList.add('oculto');
+    $('pantallaPanel').classList.remove('oculto');
+    if (!$('aFecha').value) $('aFecha').value = hoyRD();
+    reiniciarReloj();
+    cargarInscritos();
+  }
+
+  function mostrarEntrar(error) {
+    $('pantallaPanel').classList.add('oculto');
+    $('pantallaEntrar').classList.remove('oculto');
+    $('clave').value = '';
+    if (error) { $('errEntrar').textContent = error; $('errEntrar').classList.remove('oculto'); }
+  }
+
+  $('btnSalir').addEventListener('click', async () => { await sb.auth.signOut(); mostrarEntrar(); });
+
+  // Cierra la sesión sola después de 30 minutos sin usar el panel
+  let reloj = null;
+  function reiniciarReloj() {
+    clearTimeout(reloj);
+    reloj = setTimeout(async () => { await sb.auth.signOut(); mostrarEntrar('Se cerró la sesión por inactividad.'); }, MINUTOS_INACTIVO * 60000);
+  }
+  ['click', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => { if (!$('pantallaPanel').classList.contains('oculto')) reiniciarReloj(); }, { passive: true }));
+
+  // ===================== PESTAÑAS =====================
+  const cargado = {};
+  document.querySelectorAll('.pestanas button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.pestanas button').forEach((x) => x.classList.toggle('activa', x === b));
+    ['inscritos', 'actividades', 'videos'].forEach((t) => $('tab-' + t).classList.toggle('oculto', t !== b.dataset.tab));
+    if (b.dataset.tab === 'actividades' && !cargado.act) { cargado.act = true; cargarActividades(); }
+    if (b.dataset.tab === 'videos' && !cargado.vid) { cargado.vid = true; cargarVideos(); }
+  }));
+
+  // ===================== INSCRITOS =====================
+  async function cargarInscritos() {
+    $('filas').innerHTML = '<tr><td colspan="7" class="vacio">Cargando…</td></tr>';
+    const [res, lista] = await Promise.all([
+      sb.rpc('cad_resumen'),
+      sb.from('cad_inscripciones').select('id, nombre, cedula, telefono, sector, cedula_valida, estado, creado').order('creado', { ascending: false }).limit(10000),
+    ]);
+    if (res.error || lista.error) {
+      $('filas').innerHTML = `<tr><td colspan="7" class="error">${esc(mensajeError(res.error || lista.error))}</td></tr>`;
+      return;
+    }
+    const r = res.data;
+    $('cTotal').textContent = r.total;
+    $('cHoy').textContent = r.hoy;
+    $('cRevisar').textContent = r.revisar;
+    const semanas = r.por_semana || [];
+    $('cSemana').textContent = semanas.length ? semanas[semanas.length - 1].n : 0;
+    dibujarBarras($('porSector'), (r.por_sector || []).slice(0, 12).map((x) => [x.sector, x.n]));
+    dibujarBarras($('porSemana'), semanas.slice(-8).map((x) => ['Semana del ' + fechaDia(x.semana), x.n]));
+    INSCRITOS = lista.data || [];
+    dibujarLista();
+  }
+
+  function dibujarBarras(caja, datos) {
+    if (!datos.length) { caja.innerHTML = '<div class="vacio">Todavía no hay inscritos.</div>'; return; }
+    const max = Math.max(...datos.map((d) => d[1]));
+    caja.innerHTML = datos.map(([nombre, n]) =>
+      `<div class="barra-fila"><span class="nombre" title="${esc(nombre)}">${esc(nombre)}</span>` +
+      `<div class="fondo"><div class="relleno" style="width:${Math.max(4, (n / max) * 100)}%"></div></div><span class="n">${n}</span></div>`).join('');
+  }
+
+  function filtrados() {
+    const q = sinAcentos($('buscar').value.trim());
+    const qd = digitos(q);
+    const est = $('filtroEstado').value;
+    return INSCRITOS.filter((p) => {
+      if (est && p.estado !== est) return false;
+      if (!q) return true;
+      if (sinAcentos(p.nombre + ' ' + p.sector).includes(q)) return true;
+      return qd.length >= 3 && (digitos(p.cedula).includes(qd) || digitos(p.telefono).includes(qd));
+    });
+  }
+
+  function dibujarLista() {
+    const lista = filtrados();
+    if (!lista.length) {
+      $('filas').innerHTML = `<tr><td colspan="7" class="vacio">${INSCRITOS.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay inscritos.'}</td></tr>`;
+    } else {
+      $('filas').innerHTML = lista.slice(0, 500).map((p) => `
+        <tr data-id="${p.id}">
+          <td>${esc(fechaCorta(p.creado))}</td>
+          <td><b>${esc(p.nombre)}</b></td>
+          <td>${esc(p.cedula)}${p.cedula_valida ? '' : '<span class="marca-revisar" title="El dígito verificador no cuadra">revisar</span>'}</td>
+          <td><a href="tel:${digitos(p.telefono)}">${esc(p.telefono)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/1${digitos(p.telefono)}" title="Escribir por WhatsApp">WA</a></td>
+          <td>${esc(p.sector)}</td>
+          <td><select class="cambiarEstado">${['nuevo', 'revisar', 'contactado', 'descartado'].map((e) => `<option value="${e}" ${e === p.estado ? 'selected' : ''}>${e[0].toUpperCase() + e.slice(1)}</option>`).join('')}</select></td>
+          <td><button class="btn rojo chico borrar" type="button" title="Borrar">✕</button></td>
+        </tr>`).join('');
+    }
+    $('contador').textContent = `Mostrando ${Math.min(lista.length, 500)} de ${lista.length}` + (lista.length > 500 ? ' (usa la búsqueda o descarga el Excel para ver todos)' : '');
+  }
+
+  $('buscar').addEventListener('input', dibujarLista);
+  $('filtroEstado').addEventListener('change', dibujarLista);
+  $('btnRecargar').addEventListener('click', cargarInscritos);
+
+  $('filas').addEventListener('change', async (e) => {
+    if (!e.target.classList.contains('cambiarEstado')) return;
+    const id = +e.target.closest('tr').dataset.id;
+    const { error } = await sb.from('cad_inscripciones').update({ estado: e.target.value }).eq('id', id);
+    if (error) { alert(mensajeError(error)); return; }
+    const p = INSCRITOS.find((x) => x.id === id); if (p) p.estado = e.target.value;
+  });
+
+  $('filas').addEventListener('click', async (e) => {
+    if (!e.target.classList.contains('borrar')) return;
+    const id = +e.target.closest('tr').dataset.id;
+    const p = INSCRITOS.find((x) => x.id === id);
+    if (!p || !confirm(`¿Borrar la inscripción de ${p.nombre} (${p.cedula})?\n\nEsto no se puede deshacer.`)) return;
+    const { error } = await sb.from('cad_inscripciones').delete().eq('id', id);
+    if (error) { alert(mensajeError(error)); return; }
+    cargarInscritos();
+  });
+
+  // Descargar Excel (.xlsx)
+  function cargarScript(src) {
+    return new Promise((ok, mal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = mal; document.head.appendChild(s); });
+  }
+  $('btnExcel').addEventListener('click', async () => {
+    const btn = $('btnExcel');
+    btn.disabled = true; btn.textContent = 'Preparando…';
+    try {
+      if (!window.XLSX) await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      const datos = filtrados().map((p) => ({
+        'Fecha': new Date(p.creado).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }),
+        'Nombre': p.nombre, 'Cédula': p.cedula, 'Teléfono': p.telefono, 'Sector': p.sector,
+        'Estado': p.estado, 'Cédula verificada': p.cedula_valida ? 'Sí' : 'Revisar',
+      }));
+      const hoja = XLSX.utils.json_to_sheet(datos);
+      hoja['!cols'] = [{ wch: 20 }, { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 24 }, { wch: 12 }, { wch: 16 }];
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, 'Inscritos');
+      XLSX.writeFile(libro, `inscritos-CAD-${hoyRD()}.xlsx`);
+    } catch (err) {
+      alert('No se pudo crear el Excel. Revisa el internet e intenta de nuevo.');
+    }
+    btn.disabled = false; btn.textContent = '⬇ Descargar Excel';
+  });
+
+  // ===================== ACTIVIDADES =====================
+  const urlFoto = (ruta) => sb.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl;
+
+  async function cargarActividades() {
+    const caja = $('listaActividades');
+    caja.innerHTML = '<div class="vacio">Cargando…</div>';
+    const r = await sb.from('cad_actividades').select('id, titulo, fecha, lugar, descripcion, cad_fotos(id, ruta, orden)').order('fecha', { ascending: false }).order('id', { ascending: false });
+    if (r.error) { caja.innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+    if (!r.data.length) { caja.innerHTML = '<div class="tarjeta vacio">Todavía no hay actividades. Crea la primera arriba.</div>'; return; }
+    caja.innerHTML = r.data.map((a) => {
+      const fotos = (a.cad_fotos || []).sort((x, y) => x.orden - y.orden || x.id - y.id);
+      return `
+      <div class="actividad" data-id="${a.id}">
+        <div class="actividad-cab">
+          <div><h3>${esc(a.titulo)}</h3><div class="meta">📅 ${esc(fechaDia(a.fecha))}${a.lugar ? ' · 📍 ' + esc(a.lugar) : ''} · ${fotos.length} foto${fotos.length === 1 ? '' : 's'}</div>
+          ${a.descripcion ? `<p style="margin-top:6px;font-size:.9rem">${esc(a.descripcion)}</p>` : ''}</div>
+          <button class="btn rojo chico borrarAct" type="button">Borrar actividad</button>
+        </div>
+        <div class="fotos">${fotos.map((f) => `<div class="foto" data-foto="${f.id}" data-ruta="${esc(f.ruta)}"><img src="${esc(urlFoto(f.ruta))}" loading="lazy" alt=""><button type="button" class="borrarFoto" title="Quitar foto">✕</button></div>`).join('')}</div>
+        <div class="acciones">
+          <label class="btn claro chico subir">📷 Agregar fotos<input type="file" accept="image/*" multiple class="elegirFotos"></label>
+          <span class="progreso"></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  $('formActividad').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('btnActividad'); btn.disabled = true;
+    const { error } = await sb.from('cad_actividades').insert({
+      titulo: $('aTitulo').value.trim(), fecha: $('aFecha').value, lugar: $('aLugar').value.trim(), descripcion: $('aDesc').value.trim(),
+    });
+    btn.disabled = false;
+    if (error) { aviso($('msgActividad'), mensajeError(error)); return; }
+    aviso($('msgActividad'), 'Actividad guardada. Ahora agrégale fotos abajo.', true);
+    $('aTitulo').value = ''; $('aLugar').value = ''; $('aDesc').value = '';
+    cargarActividades();
+  });
+
+  // Achica la foto antes de subirla (lado mayor 1600 px, JPEG)
+  function achicar(archivo) {
+    return new Promise((ok, mal) => {
+      const url = URL.createObjectURL(archivo);
+      const img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => (b ? ok(b) : mal(new Error('No se pudo procesar'))), 'image/jpeg', 0.82);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('formato')); };
+      img.src = url;
+    });
+  }
+
+  $('listaActividades').addEventListener('change', async (e) => {
+    if (!e.target.classList.contains('elegirFotos')) return;
+    const caja = e.target.closest('.actividad');
+    const actId = +caja.dataset.id;
+    const prog = caja.querySelector('.progreso');
+    const archivos = [...e.target.files];
+    e.target.value = '';
+    let bien = 0; const fallos = [];
+    for (let i = 0; i < archivos.length; i++) {
+      prog.textContent = `Subiendo ${i + 1} de ${archivos.length}…`;
+      try {
+        const blob = await achicar(archivos[i]);
+        const ruta = `actividad-${actId}/${Date.now()}-${i}.jpg`;
+        const up = await sb.storage.from(BUCKET).upload(ruta, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+        if (up.error) throw up.error;
+        const ins = await sb.from('cad_fotos').insert({ actividad_id: actId, ruta, orden: Date.now() % 2000000000 });
+        if (ins.error) { await sb.storage.from(BUCKET).remove([ruta]); throw ins.error; }
+        bien++;
+      } catch (err) {
+        fallos.push(archivos[i].name + (err.message === 'formato' ? ' (formato no soportado; usa JPG o PNG)' : ''));
+      }
+    }
+    prog.textContent = '';
+    if (fallos.length) alert(`Se subieron ${bien} foto(s).\nNo se pudieron subir:\n- ${fallos.join('\n- ')}`);
+    cargarActividades();
+  });
+
+  $('listaActividades').addEventListener('click', async (e) => {
+    if (e.target.classList.contains('borrarFoto')) {
+      const f = e.target.closest('.foto');
+      if (!confirm('¿Quitar esta foto?')) return;
+      await sb.storage.from(BUCKET).remove([f.dataset.ruta]);
+      const { error } = await sb.from('cad_fotos').delete().eq('id', +f.dataset.foto);
+      if (error) { alert(mensajeError(error)); return; }
+      f.remove();
+    }
+    if (e.target.classList.contains('borrarAct')) {
+      const caja = e.target.closest('.actividad');
+      const titulo = caja.querySelector('h3').textContent;
+      if (!confirm(`¿Borrar la actividad "${titulo}" y TODAS sus fotos?\n\nEsto no se puede deshacer.`)) return;
+      const rutas = [...caja.querySelectorAll('.foto')].map((f) => f.dataset.ruta);
+      if (rutas.length) await sb.storage.from(BUCKET).remove(rutas);
+      const { error } = await sb.from('cad_actividades').delete().eq('id', +caja.dataset.id);
+      if (error) { alert(mensajeError(error)); return; }
+      cargarActividades();
+    }
+  });
+
+  // ===================== VIDEOS =====================
+  function idYouTube(url) {
+    const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  const esFacebook = (url) => /^https?:\/\/(www\.|m\.|web\.)?(facebook\.com|fb\.watch)\//i.test(url);
+  const esArchivo = (url) => /^videos\/[^\s]+\.(mp4|webm|mov|m4v)$/i.test(url);
+
+  async function cargarVideos() {
+    const caja = $('listaVideos');
+    caja.innerHTML = '<div class="vacio">Cargando…</div>';
+    const r = await sb.from('cad_videos').select('*').order('orden').order('id');
+    if (r.error) { caja.innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+    if (!r.data.length) { caja.innerHTML = '<div class="vacio">Todavía no hay videos.</div>'; return; }
+    caja.innerHTML = r.data.map((v, i) => {
+      const yt = idYouTube(v.url);
+      const img = yt ? `<img src="https://img.youtube.com/vi/${yt}/mqdefault.jpg" alt="">` : `<div class="sin-img">${esFacebook(v.url) ? 'f' : '▶'}</div>`;
+      return `<div class="video-fila" data-id="${v.id}" data-orden="${v.orden}">
+        ${img}
+        <div><b>${esc(v.titulo)}</b><div class="url">${esc(v.url)}</div></div>
+        <div class="acciones">
+          <button class="btn claro chico subirV" type="button" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
+          <button class="btn claro chico bajarV" type="button" ${i === r.data.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
+          <button class="btn rojo chico borrarV" type="button" title="Quitar">✕</button>
+        </div></div>`;
+    }).join('');
+  }
+
+  $('formVideo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = $('vUrl').value.trim();
+    if (!idYouTube(url) && !esFacebook(url) && !esArchivo(url)) {
+      aviso($('msgVideo'), 'El enlace debe ser de YouTube o de Facebook (por ejemplo: https://youtu.be/...).');
+      return;
+    }
+    const btn = $('btnVideo'); btn.disabled = true;
+    const max = await sb.from('cad_videos').select('orden').order('orden', { ascending: false }).limit(1);
+    const orden = max.data && max.data.length ? max.data[0].orden + 1 : 1;
+    const { error } = await sb.from('cad_videos').insert({ titulo: $('vTitulo').value.trim(), url, orden });
+    btn.disabled = false;
+    if (error) { aviso($('msgVideo'), mensajeError(error)); return; }
+    aviso($('msgVideo'), 'Video agregado.', true);
+    $('vUrl').value = ''; $('vTitulo').value = '';
+    cargarVideos();
+  });
+
+  $('listaVideos').addEventListener('click', async (e) => {
+    const fila = e.target.closest('.video-fila');
+    if (!fila) return;
+    const id = +fila.dataset.id;
+    if (e.target.classList.contains('borrarV')) {
+      if (!confirm('¿Quitar este video de la página?')) return;
+      const { error } = await sb.from('cad_videos').delete().eq('id', id);
+      if (error) { alert(mensajeError(error)); return; }
+      cargarVideos();
+    }
+    if (e.target.classList.contains('subirV') || e.target.classList.contains('bajarV')) {
+      const otra = e.target.classList.contains('subirV') ? fila.previousElementSibling : fila.nextElementSibling;
+      if (!otra) return;
+      const a = +fila.dataset.orden, b = +otra.dataset.orden;
+      const nuevoA = a === b ? (e.target.classList.contains('subirV') ? b - 1 : b + 1) : b;
+      await sb.from('cad_videos').update({ orden: nuevoA }).eq('id', id);
+      await sb.from('cad_videos').update({ orden: a }).eq('id', +otra.dataset.id);
+      cargarVideos();
+    }
+  });
+
+  // ===================== INICIO =====================
+  entrar();
+})();
+</script>
+</body>
+</html>
