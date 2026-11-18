@@ -167,6 +167,7 @@
         <button type="button" data-tab="inscritos" class="activa">👥 Inscritos</button>
         <button type="button" data-tab="actividades">📸 Actividades</button>
         <button type="button" data-tab="videos">🎥 Videos</button>
+        <button type="button" data-tab="observadores" class="solo-admin">👁 Observadores</button>
       </nav>
     </div>
   </header>
@@ -251,6 +252,30 @@
       <div class="tarjeta">
         <h2>Videos publicados</h2>
         <div id="listaVideos"></div>
+      </div>
+    </section>
+
+    <!-- ---------- OBSERVADORES (solo el administrador) ---------- -->
+    <section id="tab-observadores" class="oculto solo-admin">
+      <div class="tarjeta">
+        <h2>Nuevo observador</h2>
+        <p class="contador">Un observador puede <b>ver</b> las cifras, la lista de inscritos, las actividades y los videos, pero <b>no puede cambiar, borrar ni descargar</b> nada. Dale esta cuenta solo a personas de confianza.</p>
+        <form id="formObs" class="grid-form" autocomplete="off">
+          <div class="todo"><label for="oNombre">Nombre completo</label><input type="text" id="oNombre" maxlength="80" placeholder="Ej.: María Pérez" required></div>
+          <div><label for="oUsuario">Usuario para entrar</label><input type="text" id="oUsuario" maxlength="40" placeholder="Ej.: maria.ver" required autocapitalize="none" spellcheck="false"></div>
+          <div><label for="oClave">Clave (mínimo 8)</label><div style="display:flex;gap:8px"><input type="text" id="oClave" minlength="8" maxlength="60" required autocomplete="off" spellcheck="false"><button class="btn claro chico" type="button" id="oGenerar" title="Inventar una clave segura">🎲</button></div></div>
+          <div class="todo"><button class="btn" type="submit" id="btnObs" style="margin-top:14px">Crear observador</button></div>
+        </form>
+        <div id="msgObs"></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Observadores</h2>
+        <div class="tabla-cont">
+          <table>
+            <thead><tr><th>Nombre</th><th>Usuario</th><th>Última vez que entró</th><th></th></tr></thead>
+            <tbody id="filasObs"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -362,6 +387,9 @@
   }
 
   function mostrarEntrar(error) {
+    const primera = document.querySelector('.pestanas button[data-tab="inscritos"]');
+    if (primera && !primera.classList.contains('activa')) primera.click();
+    if ($('msgObs')) $('msgObs').innerHTML = '';
     $('modalClave').classList.add('oculto'); $('formClave').reset();
     SOLO_LECTURA = false; document.body.classList.remove('lectura');
     $('pantallaPanel').classList.add('oculto');
@@ -422,13 +450,112 @@
   }
   ['click', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => { if (!$('pantallaPanel').classList.contains('oculto')) reiniciarReloj(); }, { passive: true }));
 
+
+  // ===================== OBSERVADORES (solo el administrador) =====================
+  const fechaHora = (iso) => iso ? new Date(iso).toLocaleString('es-DO', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Todavía no ha entrado';
+  function inventarClave() {
+    const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const n = new Uint32Array(10); crypto.getRandomValues(n);
+    return Array.from(n, (x) => letras[x % letras.length]).join('');
+  }
+  $('oGenerar').addEventListener('click', () => { $('oClave').value = inventarClave(); });
+  $('oNombre').addEventListener('input', () => {
+    // Sugerir el usuario a partir del primer nombre + ".ver", si no lo han escrito a mano
+    if ($('oUsuario').dataset.mano) return;
+    const p = correoDe($('oNombre').value.trim().split(/\s+/)[0] || '').replace(DOMINIO_USUARIOS, '');
+    $('oUsuario').value = p ? p + '.ver' : '';
+  });
+  $('oUsuario').addEventListener('input', () => { $('oUsuario').dataset.mano = '1'; });
+
+  async function cargarObservadores() {
+    if (SOLO_LECTURA) return;
+    $('filasObs').innerHTML = '<tr><td colspan="4" class="vacio">Cargando…</td></tr>';
+    const r = await sb.rpc('cad_listar_observadores');
+    if (r.error) {
+      const falta = /cad_listar_observadores|could not find|404/i.test(r.error.message || '');
+      $('filasObs').innerHTML = `<tr><td colspan="4" class="error">${esc(falta ? 'Falta pegar en Supabase el archivo cad-parte10.sql' : mensajeError(r.error))}</td></tr>`;
+      return;
+    }
+    if (!r.data.length) { $('filasObs').innerHTML = '<tr><td colspan="4" class="vacio">Todavía no hay observadores.</td></tr>'; return; }
+    $('filasObs').innerHTML = r.data.map((o) => `
+      <tr data-id="${esc(o.user_id)}" data-nombre="${esc(o.nombre)}" data-usuario="${esc(o.usuario)}">
+        <td><b>${esc(o.nombre)}</b></td>
+        <td>${esc(o.usuario)}</td>
+        <td>${esc(fechaHora(o.ultimo_acceso))}</td>
+        <td style="white-space:nowrap"><button class="btn claro chico claveObs" type="button">🔑 Nueva clave</button>
+          <button class="btn rojo chico quitarObs" type="button">Quitar acceso</button></td>
+      </tr>`).join('');
+  }
+
+  function tarjetaAcceso(nombre, usuario, clave, titulo) {
+    const url = location.origin + location.pathname;
+    const texto = `Hola ${nombre}. Ya tienes acceso de solo lectura al panel de yocondavid.com.\n\nEntra aquí: ${url}\nUsuario: ${usuario}\nClave: ${clave}\n\nAl entrar, toca «🔑 Clave» y pon una clave tuya. No compartas este acceso.`;
+    return `<div class="ok"><b>${esc(titulo)}</b><br>Usuario: <b>${esc(usuario)}</b><br>Clave: <b>${esc(clave)}</b>
+      <div style="margin-top:8px;font-weight:400">Anótala ahora: después no se puede volver a ver.</div></div>
+      <a class="btn verde" style="margin-top:10px" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(texto)}">Enviarle el acceso por WhatsApp</a>`;
+  }
+
+  $('formObs').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('msgObs'), btn = $('btnObs');
+    const nombre = $('oNombre').value.trim().replace(/\s+/g, ' ');
+    const usuario = correoDe($('oUsuario').value).replace(DOMINIO_USUARIOS, '');
+    const clave = $('oClave').value;
+    const fallo = (m) => { msg.innerHTML = `<div class="error">${esc(m)}</div>`; };
+    if (nombre.length < 3) return fallo('Escribe el nombre completo.');
+    if (usuario.length < 3 || $('oUsuario').value.includes('@')) return fallo('El usuario debe tener por lo menos 3 letras, sin espacios ni @. Ejemplo: maria.ver');
+    if (clave.length < 8) return fallo('La clave debe tener por lo menos 8 letras o números. Puedes tocar 🎲 para inventar una.');
+    btn.disabled = true; btn.textContent = 'Creando…'; msg.innerHTML = '';
+    try {
+      // Se crea con un cliente aparte para NO cerrar la sesión del administrador
+      const tmp = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'tmp-' + Date.now() } });
+      const s = await tmp.auth.signUp({ email: usuario + DOMINIO_USUARIOS, password: clave });
+      const yaExiste = `Ya existe una cuenta con el usuario «${usuario}». Escoge otro.`;
+      if (s.error) throw new Error(/registered|exists/i.test(s.error.message) ? yaExiste : s.error.message);
+      if (!s.data || !s.data.user || !s.data.user.id) throw new Error('No se pudo crear la cuenta.');
+      if (s.data.user.identities && s.data.user.identities.length === 0) throw new Error(yaExiste);
+      const a = await sb.rpc('cad_agregar_observador', { p_user: s.data.user.id, p_nombre: nombre });
+      if (a.error) throw a.error;
+      msg.innerHTML = tarjetaAcceso(nombre, usuario, clave, `Listo. ${nombre} ya puede entrar.`);
+      $('formObs').reset(); delete $('oUsuario').dataset.mano;
+      cargarObservadores();
+    } catch (x) {
+      const m = mensajeError(x);
+      fallo(/weak|least|short/i.test(m) ? 'Esa clave es muy débil. Usa una más larga, con letras y números.'
+        : /signup.*(disabled|not allowed)|signups not allowed/i.test(m) ? 'Supabase no está dejando crear cuentas nuevas (registro apagado).'
+        : /cad_agregar_observador|could not find/i.test(m) ? 'Falta pegar en Supabase el archivo cad-parte10.sql' : m);
+    }
+    btn.disabled = false; btn.textContent = 'Crear observador';
+  });
+
+  $('filasObs').addEventListener('click', async (e) => {
+    const fila = e.target.closest('tr[data-id]'); if (!fila) return;
+    const id = fila.dataset.id, nombre = fila.dataset.nombre, usuario = fila.dataset.usuario;
+    if (e.target.closest('.quitarObs')) {
+      if (!confirm(`¿Quitarle el acceso a ${nombre}?\n\nSu cuenta se borra y ya no podrá entrar al panel.`)) return;
+      const r = await sb.rpc('cad_quitar_observador', { p_user: id });
+      if (r.error) { $('msgObs').innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+      $('msgObs').innerHTML = `<div class="ok">Listo. ${esc(nombre)} ya no tiene acceso.</div>`;
+      cargarObservadores();
+    }
+    if (e.target.closest('.claveObs')) {
+      if (!confirm(`¿Ponerle una clave nueva a ${nombre}?\n\nLa clave que tiene ahora deja de servir.`)) return;
+      const clave = inventarClave();
+      const r = await sb.rpc('cad_clave_observador', { p_user: id, p_clave: clave });
+      if (r.error) { $('msgObs').innerHTML = `<div class="error">${esc(mensajeError(r.error))}</div>`; return; }
+      $('msgObs').innerHTML = tarjetaAcceso(nombre, usuario, clave, `Clave nueva para ${nombre}.`);
+      $('msgObs').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
   // ===================== PESTAÑAS =====================
   const cargado = {};
   document.querySelectorAll('.pestanas button').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('.pestanas button').forEach((x) => x.classList.toggle('activa', x === b));
-    ['inscritos', 'actividades', 'videos'].forEach((t) => $('tab-' + t).classList.toggle('oculto', t !== b.dataset.tab));
+    ['inscritos', 'actividades', 'videos', 'observadores'].forEach((t) => $('tab-' + t).classList.toggle('oculto', t !== b.dataset.tab));
     if (b.dataset.tab === 'actividades') cargarActividades();
     if (b.dataset.tab === 'videos') cargarVideos();
+    if (b.dataset.tab === 'observadores') cargarObservadores();
   }));
 
   // ===================== INSCRITOS =====================
