@@ -17,6 +17,9 @@
   button, input, select, textarea { font-family: inherit; font-size: 1rem; }
   .oculto { display: none !important; }
   body.lectura .solo-admin { display: none !important; }
+  .fondo-modal { position: fixed; inset: 0; background: rgba(5,20,50,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+  .fondo-modal .caja-entrar { position: relative; }
+  .cerrar-modal { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--gris); }
   .aviso-lectura { display: none; background: #fff4d6; color: #7a5200; border: 1px solid #f0d48a; border-radius: 10px; padding: 10px 14px; margin: 14px 0 16px; font-weight: 600; }
   body.lectura .aviso-lectura { display: block; }
   .contenedor { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
@@ -134,13 +137,31 @@
   </form>
 </section>
 
+<!-- ===================== CAMBIAR CLAVE ===================== -->
+<div class="fondo-modal oculto" id="modalClave">
+  <form class="caja-entrar" id="formClave" autocomplete="off">
+    <button class="cerrar-modal" type="button" id="cerrarClave" title="Cerrar">✕</button>
+    <h1>Cambiar mi clave</h1>
+    <p>La clave nueva sirve desde la próxima vez que entres.</p>
+    <label for="claveActual">Clave actual</label>
+    <input type="password" id="claveActual" autocomplete="current-password" required>
+    <label for="claveNueva">Clave nueva (mínimo 8)</label>
+    <input type="password" id="claveNueva" minlength="8" autocomplete="new-password" required>
+    <label for="claveNueva2">Repite la clave nueva</label>
+    <input type="password" id="claveNueva2" minlength="8" autocomplete="new-password" required>
+    <button class="btn ancho" id="btnGuardarClave" type="submit">Guardar clave nueva</button>
+    <div class="error oculto" id="errClave"></div>
+    <div class="ok oculto" id="okClave"></div>
+  </form>
+</div>
+
 <!-- ===================== PANEL ===================== -->
 <div id="pantallaPanel" class="oculto">
   <header>
     <div class="contenedor">
       <div class="barra">
         <div class="marca">Panel CAD<small>yocondavid.com</small></div>
-        <div class="usuario"><span id="nombreUsuario"></span><button class="btn" id="btnSalir" type="button">Salir</button></div>
+        <div class="usuario"><span id="nombreUsuario"></span><button class="btn" id="btnClave" type="button" title="Cambiar mi clave">🔑 Clave</button><button class="btn" id="btnSalir" type="button">Salir</button></div>
       </div>
       <nav class="pestanas">
         <button type="button" data-tab="inscritos" class="activa">👥 Inscritos</button>
@@ -341,6 +362,7 @@
   }
 
   function mostrarEntrar(error) {
+    $('modalClave').classList.add('oculto'); $('formClave').reset();
     SOLO_LECTURA = false; document.body.classList.remove('lectura');
     $('pantallaPanel').classList.add('oculto');
     $('pantallaEntrar').classList.remove('oculto');
@@ -349,6 +371,48 @@
   }
 
   $('btnSalir').addEventListener('click', async () => { await sb.auth.signOut(); mostrarEntrar(); });
+
+  // ===================== CAMBIAR MI CLAVE =====================
+  function cerrarModalClave() { $('modalClave').classList.add('oculto'); $('formClave').reset(); }
+  $('btnClave').addEventListener('click', () => {
+    $('formClave').reset();
+    $('errClave').classList.add('oculto'); $('okClave').classList.add('oculto');
+    $('modalClave').classList.remove('oculto'); $('claveActual').focus();
+  });
+  $('cerrarClave').addEventListener('click', cerrarModalClave);
+  $('modalClave').addEventListener('click', (e) => { if (e.target === $('modalClave')) cerrarModalClave(); });
+  $('formClave').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('errClave'), ok = $('okClave'), btn = $('btnGuardarClave');
+    err.classList.add('oculto'); ok.classList.add('oculto');
+    const actual = $('claveActual').value, nueva = $('claveNueva').value, nueva2 = $('claveNueva2').value;
+    const fallo = (m) => { err.textContent = m; err.classList.remove('oculto'); };
+    if (nueva.length < 8) return fallo('La clave nueva debe tener por lo menos 8 letras o números.');
+    if (nueva !== nueva2) return fallo('Las dos claves nuevas no son iguales.');
+    if (nueva === actual) return fallo('La clave nueva tiene que ser distinta a la actual.');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const { data } = await sb.auth.getSession();
+      const correo = data && data.session && data.session.user && data.session.user.email;
+      if (!correo) throw new Error('Tu sesión se cerró. Vuelve a entrar.');
+      // 1) Comprobar la clave actual (por si alguien encontró el panel abierto)
+      const claves = [actual];
+      if (digitos(actual).length === 11 && digitos(actual) !== actual) claves.push(digitos(actual));
+      let r = null;
+      for (const c of claves) { r = await sb.auth.signInWithPassword({ email: correo, password: c }); if (!r.error) break; }
+      if (r.error) throw new Error('La clave actual no es correcta.');
+      // 2) Guardar la nueva
+      const u = await sb.auth.updateUser({ password: nueva });
+      if (u.error) throw u.error;
+      $('formClave').reset();
+      ok.textContent = '✔ Clave cambiada. Úsala la próxima vez que entres (aquí y en la app Estructura de apoyo, si la usas).';
+      ok.classList.remove('oculto');
+    } catch (x) {
+      const m = mensajeError(x);
+      fallo(/weak|short|least/i.test(m) ? 'Esa clave es muy débil. Usa una más larga, con letras y números.' : m);
+    }
+    btn.disabled = false; btn.textContent = 'Guardar clave nueva';
+  });
 
   // Cierra la sesión sola después de 30 minutos sin usar el panel
   let reloj = null;
