@@ -262,7 +262,7 @@
         <p class="contador">Un observador puede <b>ver</b> las cifras, la lista de inscritos, las actividades y los videos, pero <b>no puede cambiar, borrar ni descargar</b> nada. Dale esta cuenta solo a personas de confianza.</p>
         <form id="formObs" class="grid-form" autocomplete="off">
           <div class="todo"><label for="oNombre">Nombre completo</label><input type="text" id="oNombre" maxlength="80" placeholder="Ej.: María Pérez" required></div>
-          <div><label for="oUsuario">Usuario para entrar</label><input type="text" id="oUsuario" maxlength="40" placeholder="Ej.: maria.ver" required autocapitalize="none" spellcheck="false"></div>
+          <div><label for="oUsuario">Usuario para entrar</label><input type="text" id="oUsuario" maxlength="40" placeholder="Ej.: maria" required autocapitalize="none" spellcheck="false"></div>
           <div><label for="oClave">Clave (mínimo 8)</label><div style="display:flex;gap:8px"><input type="text" id="oClave" minlength="8" maxlength="60" required autocomplete="off" spellcheck="false"><button class="btn claro chico" type="button" id="oGenerar" title="Inventar una clave segura">🎲</button></div></div>
           <div class="todo"><button class="btn" type="submit" id="btnObs" style="margin-top:14px">Crear observador</button></div>
         </form>
@@ -287,9 +287,9 @@
 <script>
 (function () {
   // ===================== CONFIGURACIÓN =====================
-  const SUPABASE_URL = 'https://wgudgnjdmnftrmnroige.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_otl8-8rqa5IDC7mDutj8CQ_UNLFqzi1';           // clave PÚBLICA (publishable). La seguridad la ponen las reglas RLS.
-  const DOMINIO_USUARIOS = '@estructura.app';  // mismo sistema de usuarios de la app "Estructura de apoyo"
+  const SUPABASE_URL = 'https://mvmvzipngsqijnazydyc.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_QmqnV1ts40qxnS82voq4Vg_4IH81-fh';           // clave PÚBLICA (publishable). La seguridad la ponen las reglas RLS.
+  const DOMINIO_USUARIOS = '@yocondavid.com';  // usuarios propios del panel (proyecto separado de Estructura)
   const BUCKET = 'cad-fotos';
   const BUCKET_VIDEOS = 'cad-videos';
   const MAX_FOTOS = 10, MAX_VIDEOS = 10;
@@ -362,16 +362,11 @@
     const { data } = await sb.auth.getSession();
     const user = data && data.session && data.session.user;
     if (!user) { mostrarEntrar(); return; }
-    const r = await sb.from('perfiles').select('nombre, rol, activo').eq('id', user.id).maybeSingle();
-    let nombre = null;
-    SOLO_LECTURA = false;
-    if (!r.error && r.data && r.data.activo && r.data.rol === 'admin') {
-      nombre = r.data.nombre;
-    } else {
-      // ¿Es una cuenta de "solo ver"?
-      const o = await sb.rpc('cad_observador_nombre');
-      if (!o.error && o.data) { nombre = o.data; SOLO_LECTURA = true; }
-    }
+    // ¿Qué permiso tiene? { rol: 'admin' | 'observador', nombre }
+    const r = await sb.rpc('cad_mi_acceso');
+    const acceso = !r.error && r.data ? r.data : null;
+    const nombre = acceso && (acceso.rol === 'admin' || acceso.rol === 'observador') ? acceso.nombre : null;
+    SOLO_LECTURA = !!acceso && acceso.rol === 'observador';
     if (!nombre) {
       await sb.auth.signOut();
       mostrarEntrar('Esta cuenta no tiene permiso para este panel.');
@@ -433,7 +428,7 @@
       const u = await sb.auth.updateUser({ password: nueva });
       if (u.error) throw u.error;
       $('formClave').reset();
-      ok.textContent = '✔ Clave cambiada. Úsala la próxima vez que entres (aquí y en la app Estructura de apoyo, si la usas).';
+      ok.textContent = '✔ Clave cambiada. Úsala la próxima vez que entres.';
       ok.classList.remove('oculto');
     } catch (x) {
       const m = mensajeError(x);
@@ -463,7 +458,7 @@
     // Sugerir el usuario a partir del primer nombre + ".ver", si no lo han escrito a mano
     if ($('oUsuario').dataset.mano) return;
     const p = correoDe($('oNombre').value.trim().split(/\s+/)[0] || '').replace(DOMINIO_USUARIOS, '');
-    $('oUsuario').value = p ? p + '.ver' : '';
+    $('oUsuario').value = p;
   });
   $('oUsuario').addEventListener('input', () => { $('oUsuario').dataset.mano = '1'; });
 
@@ -473,7 +468,7 @@
     const r = await sb.rpc('cad_listar_observadores');
     if (r.error) {
       const falta = /cad_listar_observadores|could not find|404/i.test(r.error.message || '');
-      $('filasObs').innerHTML = `<tr><td colspan="4" class="error">${esc(falta ? 'Falta pegar en Supabase el archivo cad-parte10.sql' : mensajeError(r.error))}</td></tr>`;
+      $('filasObs').innerHTML = `<tr><td colspan="4" class="error">${esc(falta ? 'Falta pegar en Supabase el archivo cad-completo.sql' : mensajeError(r.error))}</td></tr>`;
       return;
     }
     if (!r.data.length) { $('filasObs').innerHTML = '<tr><td colspan="4" class="vacio">Todavía no hay observadores.</td></tr>'; return; }
@@ -503,19 +498,20 @@
     const clave = $('oClave').value;
     const fallo = (m) => { msg.innerHTML = `<div class="error">${esc(m)}</div>`; };
     if (nombre.length < 3) return fallo('Escribe el nombre completo.');
-    if (usuario.length < 3 || $('oUsuario').value.includes('@')) return fallo('El usuario debe tener por lo menos 3 letras, sin espacios ni @. Ejemplo: maria.ver');
+    if (usuario.length < 3 || $('oUsuario').value.includes('@')) return fallo('El usuario debe tener por lo menos 3 letras, sin espacios ni @. Ejemplo: maria');
     if (clave.length < 8) return fallo('La clave debe tener por lo menos 8 letras o números. Puedes tocar 🎲 para inventar una.');
     btn.disabled = true; btn.textContent = 'Creando…'; msg.innerHTML = '';
     try {
-      // Se crea con un cliente aparte para NO cerrar la sesión del administrador
+      // 1) Invitación (la base de datos solo deja crear cuentas invitadas por el admin)
+      const inv = await sb.rpc('cad_invitar_observador', { p_usuario: usuario, p_nombre: nombre });
+      if (inv.error) throw inv.error;
+      // 2) Crear la cuenta con un cliente aparte, para NO cerrar la sesión del administrador
       const tmp = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'tmp-' + Date.now() } });
       const s = await tmp.auth.signUp({ email: usuario + DOMINIO_USUARIOS, password: clave });
       const yaExiste = `Ya existe una cuenta con el usuario «${usuario}». Escoge otro.`;
       if (s.error) throw new Error(/registered|exists/i.test(s.error.message) ? yaExiste : s.error.message);
       if (!s.data || !s.data.user || !s.data.user.id) throw new Error('No se pudo crear la cuenta.');
       if (s.data.user.identities && s.data.user.identities.length === 0) throw new Error(yaExiste);
-      const a = await sb.rpc('cad_agregar_observador', { p_user: s.data.user.id, p_nombre: nombre });
-      if (a.error) throw a.error;
       msg.innerHTML = tarjetaAcceso(nombre, usuario, clave, `Listo. ${nombre} ya puede entrar.`);
       $('formObs').reset(); delete $('oUsuario').dataset.mano;
       cargarObservadores();
@@ -523,7 +519,8 @@
       const m = mensajeError(x);
       fallo(/weak|least|short/i.test(m) ? 'Esa clave es muy débil. Usa una más larga, con letras y números.'
         : /signup.*(disabled|not allowed)|signups not allowed/i.test(m) ? 'Supabase no está dejando crear cuentas nuevas (registro apagado).'
-        : /cad_agregar_observador|could not find/i.test(m) ? 'Falta pegar en Supabase el archivo cad-parte10.sql' : m);
+        : /database error|invitad/i.test(m) ? 'No se pudo crear la cuenta (la invitación venció). Intenta de nuevo.'
+        : /cad_invitar_observador|could not find/i.test(m) ? 'Falta pegar en Supabase el archivo cad-completo.sql' : m);
     }
     btn.disabled = false; btn.textContent = 'Crear observador';
   });

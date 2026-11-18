@@ -321,7 +321,7 @@
         </div>
 
         <!-- Verificación "no soy un robot" (Cloudflare Turnstile) -->
-        <div class="cf-turnstile" data-sitekey="0x4AAAAAAGEbcMRK-eKHg85L" data-language="es" data-theme="light" data-size="flexible"></div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAGGXxD3AX17Aehog" data-language="es" data-theme="light" data-size="flexible"></div>
 
         <button type="submit" class="btn btn-azul" id="btnEnviar">Quiero sumarme</button>
         <div class="mensaje" id="mensaje" role="status" aria-live="polite"></div>
@@ -554,8 +554,8 @@
   // ===================== CONTENIDO DEL PANEL (Supabase) =====================
   // Lee lo que el administrador sube en yocondavid.com/admin.html.
   // Clave PÚBLICA: solo permite LEER actividades, fotos y videos (las reglas RLS protegen lo demás).
-  const SUPA_URL = 'https://wgudgnjdmnftrmnroige.supabase.co';
-  const SUPA_KEY = 'sb_publishable_otl8-8rqa5IDC7mDutj8CQ_UNLFqzi1';
+  const SUPA_URL = 'https://mvmvzipngsqijnazydyc.supabase.co';
+  const SUPA_KEY = 'sb_publishable_QmqnV1ts40qxnS82voq4Vg_4IH81-fh';
   const urlFotoPanel = (ruta) => SUPA_URL + '/storage/v1/object/public/cad-fotos/' + ruta.split('/').map(encodeURIComponent).join('/');
   const escHtml = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   async function leerPanel(ruta) {
@@ -796,7 +796,7 @@
   // ===================== FORMULARIO "SÚMATE" =====================
   // Envía los datos a la función del servidor (Supabase), que revisa
   // el "no soy un robot" y guarda la inscripción.
-  const URL_INSCRIBIR = 'https://wgudgnjdmnftrmnroige.supabase.co/functions/v1/smart-task';
+  const URL_INSCRIBIR = 'https://mvmvzipngsqijnazydyc.supabase.co/functions/v1/hyper-service';
   const formulario = document.getElementById('formulario');
   const btnEnviar = document.getElementById('btnEnviar');
   const mensaje = document.getElementById('mensaje');
