@@ -193,7 +193,6 @@
         <div class="cifra"><b id="cHoy">–</b><span>Inscritos hoy</span></div>
         <div class="cifra"><b id="cSemana">–</b><span>Esta semana</span></div>
         <div class="cifra"><b id="cExterior">–</b><span>Desde el exterior</span></div>
-        <div class="cifra alerta"><b id="cRevisar">–</b><span>Por revisar (cédula)</span></div>
         <div class="cifra"><b id="cPadronSi">–</b><span>Están en el padrón</span></div>
         <div class="cifra alerta"><b id="cPadronNo">–</b><span>No están en el padrón cargado</span></div>
         <button type="button" class="cifra alerta circ" id="cifraConf"><b id="cAconf">–</b><span>A CONFIRMAR</span></button>
@@ -614,7 +613,6 @@
     const r = res.data;
     $('cTotal').textContent = r.total;
     $('cHoy').textContent = r.hoy;
-    $('cRevisar').textContent = r.revisar;
     $('cExterior').textContent = r.exterior ?? 0;
     const semanas = r.por_semana || [];
     $('cSemana').textContent = semanas.length ? semanas[semanas.length - 1].n : 0;
@@ -666,7 +664,7 @@
         <tr data-id="${p.id}">
           <td>${esc(fechaCorta(p.creado))}</td>
           <td><b>${esc(p.nombre)}</b></td>
-          <td>${esc(p.cedula)}${p.cedula_valida ? '' : '<span class="marca-revisar" title="El dígito verificador no cuadra">revisar</span>'}</td>
+          <td>${esc(p.cedula)}</td>
           <td><a href="tel:${telLlamar(p.telefono)}">${esc(p.telefono)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/${telWhatsApp(p.telefono)}" title="Escribir por WhatsApp">WA</a></td>
           <td>${esc(p.sector)}</td>
           <td>${esc(p.pais || 'República Dominicana')}</td>
