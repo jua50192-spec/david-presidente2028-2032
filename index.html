@@ -420,25 +420,6 @@
     <h2>Actividades</h2>
     <p class="subtitulo">Nuestro trabajo en los barrios del Distrito Nacional.</p>
     <div id="actividadesPanel" class="oculto-panel"></div>
-    <h3 class="mas-fotos oculto-panel" id="masFotos">Más fotos de nuestras actividades</h3>
-    <div class="galeria" id="galeriaFija">
-      <div class="foto-act">
-        <img class="foto" data-foto="fotos/actividad1" alt="Actividad 1">
-        <div class="foto-vacia">Foto de actividad 1<br><small>fotos/actividad1.jpg</small></div>
-      </div>
-      <div class="foto-act">
-        <img class="foto" data-foto="fotos/actividad2" alt="Actividad 2">
-        <div class="foto-vacia">Foto de actividad 2<br><small>fotos/actividad2.jpg</small></div>
-      </div>
-      <div class="foto-act">
-        <img class="foto" data-foto="fotos/actividad3" alt="Actividad 3">
-        <div class="foto-vacia">Foto de actividad 3<br><small>fotos/actividad3.jpg</small></div>
-      </div>
-      <div class="foto-act">
-        <img class="foto" data-foto="fotos/actividad4" alt="Actividad 4">
-        <div class="foto-vacia">Foto de actividad 4<br><small>fotos/actividad4.jpg</small></div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -654,7 +635,6 @@
           </div></article>`;
       }).join('');
       cont.classList.remove('oculto-panel');
-      document.getElementById('masFotos').classList.remove('oculto-panel');   // las fotos fijas siguen debajo
     })
     .catch(() => {});   // si falla, se quedan las fotos fijas
 
@@ -670,15 +650,6 @@
     if (!b) return;
     fotosVisor = JSON.parse(b.parentElement.dataset.fotos);
     posVisor = +b.dataset.i;
-    mostrarFoto();
-    visor.classList.add('abierto');
-  });
-  document.getElementById('galeriaFija').addEventListener('click', (e) => {
-    const img = e.target.closest('.foto-act img');
-    if (!img || location.hash === '#editar') return;
-    const todas = [...document.querySelectorAll('#galeriaFija .foto-act img')].filter((i) => i.style.display === 'block');
-    fotosVisor = todas.map((i) => i.src);
-    posVisor = Math.max(0, todas.indexOf(img));
     mostrarFoto();
     visor.classList.add('abierto');
   });
