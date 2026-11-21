@@ -195,8 +195,9 @@
         <div class="cifra"><b id="cExterior">–</b><span>Desde el exterior</span></div>
         <div class="cifra alerta"><b id="cRevisar">–</b><span>Por revisar (cédula)</span></div>
         <div class="cifra"><b id="cPadronSi">–</b><span>Están en el padrón</span></div>
-        <div class="cifra alerta"><b id="cPadronNo">–</b><span>No están en el padrón</span></div>
-        <button type="button" class="cifra alerta circ" id="cifraConf"><b id="cAconf">–</b><span>A confirmar (no verificados)</span></button>
+        <div class="cifra alerta"><b id="cPadronNo">–</b><span>No están en el padrón cargado</span></div>
+        <button type="button" class="cifra alerta circ" id="cifraConf"><b id="cAconf">–</b><span>A CONFIRMAR</span></button>
+        <button type="button" class="cifra circ" id="cifraRat"><b id="cRat">–</b><span>RATIFICADOS</span></button>
       </div>
       <div class="cifras circs">
         <button type="button" class="cifra circ" data-circ="1"><b id="cC1">–</b><span>Circunscripción 1</span></button>
@@ -205,7 +206,7 @@
         <button type="button" class="cifra circ" data-circ="sin"><b id="cCsin">–</b><span>Sin circunscripción</span></button>
       </div>
       <div class="tarjeta solo-admin padron-caja">
-        <div><b>Padrón:</b> busca a todos los inscritos en el padrón y les pone su circunscripción, recinto y colegio. Úsalo después de cargar un padrón nuevo.</div>
+        <div><b>Padrón:</b> busca a todos los inscritos en el padrón cargado (militantes del D.N. que no han iniciado el proceso de la cédula nueva) y les pone su circunscripción, recinto, colegio y el letrero de su tarjeta (A CONFIRMAR o RATIFICADO). Úsalo después de cargar un padrón nuevo.</div>
         <button class="btn" id="btnPadron" type="button">🔎 Revisar inscritos en el padrón</button>
         <div id="msgPadron"></div>
       </div>
@@ -229,8 +230,9 @@
           <select id="filtroPadron">
             <option value="">Padrón: todos</option>
             <option value="si">Están en el padrón</option>
-            <option value="no">No están en el padrón</option>
-            <option value="conf">A confirmar (no verificados)</option>
+            <option value="no">No están en el padrón cargado</option>
+            <option value="conf">A CONFIRMAR</option>
+            <option value="rat">RATIFICADOS</option>
           </select>
           <select id="filtroEstado">
             <option value="">Todos los estados</option>
@@ -602,7 +604,7 @@
     $('filas').innerHTML = '<tr><td colspan="11" class="vacio">Cargando…</td></tr>';
     const [res, lista] = await Promise.all([
       sb.rpc('cad_resumen'),
-      sb.from('cad_inscripciones').select('id, nombre, cedula, telefono, sector, pais, cedula_valida, estado, creado, circ, recinto, colegio, en_padron, a_confirmar').order('creado', { ascending: false }).limit(10000),
+      sb.from('cad_inscripciones').select('id, nombre, cedula, telefono, sector, pais, cedula_valida, estado, creado, circ, recinto, colegio, en_padron, a_confirmar, estado_padron').order('creado', { ascending: false }).limit(10000),
       RECINTOS ? Promise.resolve(null) : sb.from('cad_recintos').select('codigo, nombre').then((x) => { if (!x.error) RECINTOS = Object.fromEntries((x.data || []).map((r) => [r.codigo, r.nombre])); }),
     ]);
     if (res.error || lista.error) {
@@ -623,6 +625,7 @@
     $('cPadronSi').textContent = r.padron_si ?? 0;
     $('cPadronNo').textContent = r.padron_no ?? 0;
     $('cAconf').textContent = r.a_confirmar ?? 0;
+    $('cRat').textContent = ((r.por_letrero || []).find((x) => x.letrero === 'RATIFICADO') || {}).n || 0;
     const pc = Object.fromEntries((r.por_circ || []).map((x) => [x.circ == null ? 'sin' : String(x.circ), x.n]));
     ['1', '2', '3', 'sin'].forEach((k) => ($('cC' + k).textContent = pc[k] || 0));
     INSCRITOS = lista.data || [];
@@ -647,6 +650,7 @@
       if (fp === 'si' && p.en_padron !== true) return false;
       if (fp === 'no' && p.en_padron !== false) return false;
       if (fp === 'conf' && p.a_confirmar !== true) return false;
+      if (fp === 'rat' && p.estado_padron !== 'RATIFICADO') return false;
       if (!q) return true;
       if (sinAcentos(p.nombre + ' ' + p.sector + ' ' + (p.pais || '') + ' ' + nombreRecinto(p.recinto)).includes(q)) return true;
       return qd.length >= 3 && (digitos(p.cedula).includes(qd) || digitos(p.telefono).includes(qd));
@@ -668,7 +672,7 @@
           <td>${esc(p.pais || 'República Dominicana')}</td>
           <td>${p.circ ? `<b>C${p.circ}</b>` : '–'}</td>
           <td>${p.recinto ? `<span title="${esc(p.recinto)}">${esc(nombreRecinto(p.recinto))}</span>${p.colegio ? `<br><small>Colegio ${esc(p.colegio)}</small>` : ''}` : '–'}</td>
-          <td>${p.en_padron === true ? (p.a_confirmar ? '<span class="pad conf" title="Está en el padrón como A CONFIRMAR: debe verificarse en el PRM">A confirmar</span>' : '<span class="pad si">Sí</span>') : p.en_padron === false ? '<span class="pad no">No</span>' : '–'}${p.a_confirmar && !SOLO_LECTURA ? `<br><a class="wa-conf" target="_blank" rel="noopener" href="https://wa.me/${telWhatsApp(p.telefono)}?text=${encodeURIComponent(`Hola ${p.nombre.split(' ')[0]}, gracias por sumarte al equipo de David Collado. Usted no está verificado en el PRM. Para poder votar por David en las primarias, realice su verificación desde aquí: https://verificate.prm.do/`)}">📲 Avisar</a>` : ''}</td>
+          <td>${p.en_padron === true ? (p.a_confirmar ? '<span class="pad conf" title="En el padrón dice A CONFIRMAR: debe verificarse en el PRM">A CONFIRMAR</span>' : `<span class="pad si" title="Así dice su tarjeta en el padrón">${esc(p.estado_padron || 'En el padrón')}</span>`) : p.en_padron === false ? '<span class="pad no" title="No aparece en el padrón cargado (no iniciado proceso cédula nueva)">No está</span>' : '–'}${p.a_confirmar && !SOLO_LECTURA ? `<br><a class="wa-conf" target="_blank" rel="noopener" href="https://wa.me/${telWhatsApp(p.telefono)}?text=${encodeURIComponent(`Hola ${p.nombre.split(' ')[0]}, gracias por sumarte al equipo de David Collado. Usted no está verificado en el PRM. Para poder votar por David en las primarias, realice su verificación desde aquí: https://verificate.prm.do/`)}">📲 Avisar</a>` : ''}</td>
           <td>${SOLO_LECTURA ? esc(p.estado[0].toUpperCase() + p.estado.slice(1)) : `<select class="cambiarEstado">${['nuevo', 'revisar', 'contactado', 'descartado'].map((e) => `<option value="${e}" ${e === p.estado ? 'selected' : ''}>${e[0].toUpperCase() + e.slice(1)}</option>`).join('')}</select>`}</td>
           <td class="solo-admin"><button class="btn rojo chico borrar" type="button" title="Borrar">✕</button></td>
         </tr>`).join('');
@@ -680,6 +684,10 @@
   $('filtroEstado').addEventListener('change', dibujarLista);
   $('filtroCirc').addEventListener('change', dibujarLista);
   $('filtroPadron').addEventListener('change', dibujarLista);
+  $('cifraRat').addEventListener('click', () => {
+    $('filtroPadron').value = $('filtroPadron').value === 'rat' ? '' : 'rat';
+    dibujarLista(); $('filas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('cifraConf').addEventListener('click', () => {
     $('filtroPadron').value = $('filtroPadron').value === 'conf' ? '' : 'conf';
     dibujarLista(); $('filas').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -698,7 +706,7 @@
       const { data, error } = await sb.functions.invoke(FUNCION_SERVIDOR, { body: { accion: 'revisar_padron' } });
       if (error) throw error;
       if (!data || data.r !== 'ok') throw new Error(data && data.m ? data.m : 'No se pudo revisar.');
-      msg.innerHTML = `<div class="ok">✔ Listo: <b>${data.encontrados}</b> están en el padrón y <b>${data.no_encontrados}</b> no están.${data.a_confirmar != null ? ` <b>${data.a_confirmar}</b> están "A confirmar".` : ''}</div>`;
+      msg.innerHTML = `<div class="ok">✔ Listo: <b>${data.encontrados}</b> están en el padrón y <b>${data.no_encontrados}</b> no están.${data.a_confirmar != null ? ` <b>${data.a_confirmar}</b> dicen "A CONFIRMAR".` : ''}</div>`;
       cargarInscritos();
     } catch (e) {
       msg.innerHTML = `<div class="error">${esc(mensajeError(e))}</div>`;
@@ -740,7 +748,7 @@
         'Nombre': p.nombre, 'Cédula': p.cedula, 'Teléfono': p.telefono, 'Sector / Ciudad': p.sector, 'País': p.pais || 'República Dominicana',
         'Circunscripción': p.circ || '', 'Recinto': p.recinto ? nombreRecinto(p.recinto) : '', 'Cód. recinto': p.recinto || '', 'Colegio': p.colegio || '',
         'En el padrón': p.en_padron === true ? 'Sí' : p.en_padron === false ? 'No' : '',
-        'A confirmar': p.a_confirmar ? 'Sí' : '',
+        'Letrero en el padrón': p.estado_padron || '',
         'Estado': p.estado, 'Cédula verificada': p.cedula_valida ? 'Sí' : 'Revisar',
       }));
       const hoja = XLSX.utils.json_to_sheet(datos);
