@@ -203,6 +203,8 @@
         <button type="button" class="cifra circ" data-circ="2"><b id="cC2">–</b><span>Circunscripción 2</span></button>
         <button type="button" class="cifra circ" data-circ="3"><b id="cC3">–</b><span>Circunscripción 3</span></button>
         <button type="button" class="cifra circ" data-circ="sin"><b id="cCsin">–</b><span>No figuran en el padrón del D.N.</span></button>
+        <button type="button" class="cifra circ" data-circ="sin_dn"><b id="cCsin_dn">–</b><span>No figuran · votan en el D.N. <small>(según la persona)</small></span></button>
+        <button type="button" class="cifra circ" data-circ="sin_fuera"><b id="cCsin_fuera">–</b><span>No figuran · votan fuera del D.N. <small>(según la persona)</small></span></button>
       </div>
       <div class="tarjeta solo-admin padron-caja">
         <div><b>Padrón:</b> busca a todos los inscritos en el padrón cargado (militantes del D.N. que no han iniciado el proceso de la cédula nueva) y les pone su circunscripción, recinto, colegio y el letrero de su tarjeta (A CONFIRMAR o RATIFICADO). Úsalo después de cargar un padrón nuevo.</div>
@@ -225,6 +227,8 @@
             <option value="2">Circ. 2</option>
             <option value="3">Circ. 3</option>
             <option value="sin">No figuran en el padrón del D.N.</option>
+            <option value="sin_dn">No figuran · votan en el D.N.</option>
+            <option value="sin_fuera">No figuran · votan fuera del D.N.</option>
           </select>
           <select id="filtroPadron">
             <option value="">Padrón: todos</option>
@@ -603,7 +607,7 @@
     $('filas').innerHTML = '<tr><td colspan="11" class="vacio">Cargando…</td></tr>';
     const [res, lista] = await Promise.all([
       sb.rpc('cad_resumen'),
-      sb.from('cad_inscripciones').select('id, nombre, cedula, telefono, sector, pais, cedula_valida, estado, creado, circ, recinto, colegio, en_padron, a_confirmar, estado_padron').order('creado', { ascending: false }).limit(10000),
+      sb.from('cad_inscripciones').select('id, nombre, cedula, telefono, sector, pais, cedula_valida, estado, creado, circ, recinto, colegio, en_padron, a_confirmar, estado_padron, municipio_vota').order('creado', { ascending: false }).limit(10000),
       RECINTOS ? Promise.resolve(null) : sb.from('cad_recintos').select('codigo, nombre').then((x) => { if (!x.error) RECINTOS = Object.fromEntries((x.data || []).map((r) => [r.codigo, r.nombre])); }),
     ]);
     if (res.error || lista.error) {
@@ -626,6 +630,8 @@
     $('cRat').textContent = ((r.por_letrero || []).find((x) => x.letrero === 'RATIFICADO') || {}).n || 0;
     const pc = Object.fromEntries((r.por_circ || []).map((x) => [x.circ == null ? 'sin' : String(x.circ), x.n]));
     ['1', '2', '3', 'sin'].forEach((k) => ($('cC' + k).textContent = pc[k] || 0));
+    $('cCsin_dn').textContent = r.sin_vota_dn ?? 0;
+    $('cCsin_fuera').textContent = r.sin_vota_fuera ?? 0;
     INSCRITOS = lista.data || [];
     dibujarLista();
   }
@@ -644,13 +650,16 @@
     const est = $('filtroEstado').value, fc = $('filtroCirc').value, fp = $('filtroPadron').value;
     return INSCRITOS.filter((p) => {
       if (est && p.estado !== est) return false;
-      if (fc && (fc === 'sin' ? p.circ != null : String(p.circ) !== fc)) return false;
+      if (fc === 'sin' && p.circ != null) return false;
+      if (fc === 'sin_dn' && (p.circ != null || p.municipio_vota !== 'Distrito Nacional')) return false;
+      if (fc === 'sin_fuera' && (p.circ != null || !p.municipio_vota || p.municipio_vota === 'Distrito Nacional')) return false;
+      if (fc && !fc.startsWith('sin') && String(p.circ) !== fc) return false;
       if (fp === 'si' && p.en_padron !== true) return false;
       if (fp === 'no' && p.en_padron !== false) return false;
       if (fp === 'conf' && p.a_confirmar !== true) return false;
       if (fp === 'rat' && p.estado_padron !== 'RATIFICADO') return false;
       if (!q) return true;
-      if (sinAcentos(p.nombre + ' ' + p.sector + ' ' + (p.pais || '') + ' ' + nombreRecinto(p.recinto)).includes(q)) return true;
+      if (sinAcentos(p.nombre + ' ' + p.sector + ' ' + (p.pais || '') + ' ' + (p.municipio_vota || '') + ' ' + nombreRecinto(p.recinto)).includes(q)) return true;
       return qd.length >= 3 && (digitos(p.cedula).includes(qd) || digitos(p.telefono).includes(qd));
     });
   }
@@ -666,7 +675,7 @@
           <td><b>${esc(p.nombre)}</b></td>
           <td>${esc(p.cedula)}</td>
           <td><a href="tel:${telLlamar(p.telefono)}">${esc(p.telefono)}</a><a class="wa" target="_blank" rel="noopener" href="https://wa.me/${telWhatsApp(p.telefono)}" title="Escribir por WhatsApp">WA</a></td>
-          <td>${esc(p.sector)}</td>
+          <td>${esc(p.sector)}${p.municipio_vota ? `<br><small title="Lo dijo la persona al inscribirse">Vota en: ${esc(p.municipio_vota)}</small>` : ''}</td>
           <td>${esc(p.pais || 'República Dominicana')}</td>
           <td>${p.circ ? `<b>C${p.circ}</b>` : '–'}</td>
           <td>${p.recinto ? `<span title="${esc(p.recinto)}">${esc(nombreRecinto(p.recinto))}</span>${p.colegio ? `<br><small>Colegio ${esc(p.colegio)}</small>` : ''}` : '–'}</td>
@@ -747,10 +756,11 @@
         'Circunscripción': p.circ || '', 'Recinto': p.recinto ? nombreRecinto(p.recinto) : '', 'Cód. recinto': p.recinto || '', 'Colegio': p.colegio || '',
         'En el padrón': p.en_padron === true ? 'Sí' : p.en_padron === false ? 'No' : '',
         'Letrero en el padrón': p.estado_padron || '',
-        'Estado': p.estado, 'Cédula verificada': p.cedula_valida ? 'Sí' : 'Revisar',
+        'Vota en (según la persona)': p.municipio_vota || '',
+        'Estado': p.estado,
       }));
       const hoja = XLSX.utils.json_to_sheet(datos);
-      hoja['!cols'] = [{ wch: 20 }, { wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 24 }, { wch: 22 }, { wch: 8 }, { wch: 34 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 11 }, { wch: 12 }, { wch: 16 }];
+      hoja['!cols'] = [{ wch: 20 }, { wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 24 }, { wch: 22 }, { wch: 8 }, { wch: 34 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 11 }, { wch: 14 }, { wch: 24 }, { wch: 12 }];
       const libro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(libro, hoja, 'Inscritos');
       XLSX.writeFile(libro, `inscritos-CAD-${hoyRD()}.xlsx`);

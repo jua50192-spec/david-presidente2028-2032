@@ -317,6 +317,21 @@
           <label for="otroPais">¿En cuál país?</label>
           <input type="text" id="otroPais" maxlength="60" placeholder="Escribe el país">
         </div>
+        <div id="cajaMunicipio">
+          <label for="municipio">¿En qué municipio votas?</label>
+          <select id="municipio" required>
+            <option value="">Escoge tu municipio…</option>
+            <option>Distrito Nacional</option>
+            <option>Santo Domingo Este</option>
+            <option>Santo Domingo Norte</option>
+            <option>Santo Domingo Oeste</option>
+            <option>Boca Chica</option>
+            <option>Los Alcarrizos</option>
+            <option>Pedro Brand</option>
+            <option>San Antonio de Guerra</option>
+            <option>Otro municipio del país</option>
+          </select>
+        </div>
 
         <label for="telefono">Teléfono / WhatsApp</label>
         <div class="tel-fila"><span class="prefijo oculto-panel" id="prefijoTel">+1</span>
@@ -835,6 +850,10 @@
     const cod = codigoPais();
     document.getElementById('cajaOtroPais').classList.toggle('oculto-panel', !otro);
     campoOtroPais.required = otro;
+    // "¿En qué municipio votas?" solo para quien vive en República Dominicana
+    document.getElementById('cajaMunicipio').classList.toggle('oculto-panel', !esRD());
+    document.getElementById('municipio').required = esRD();
+    if (!esRD()) document.getElementById('municipio').value = '';
     campoTel.value = '';
     if (esRD()) {
       prefijo.classList.add('oculto-panel');
@@ -922,6 +941,7 @@
           telefono: telefonoCompleto(),
           pais: campoPais.value === 'Otro país' ? campoOtroPais.value.trim() : campoPais.value,
           sector: document.getElementById('sector').value,
+          municipio: esRD() ? document.getElementById('municipio').value : '',
           sitio_web: document.getElementById('sitio_web').value,
           t: Date.now() - inicioFormulario,
           token: token,
