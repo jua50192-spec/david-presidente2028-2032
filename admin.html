@@ -130,6 +130,11 @@
   .barra-subida div { height: 100%; width: 0; background: var(--azul); transition: width .2s; }
   .barra-subida span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: #fff; mix-blend-mode: difference; }
   .aviso-pie { color: var(--gris); font-size: .78rem; text-align: center; margin-top: 30px; }
+  .fotos-elegidas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .foto-elegida { display: flex; align-items: center; gap: 6px; background: #f1f5fb; border: 1px solid #d6e0ee; border-radius: 10px; padding: 4px 6px; max-width: 230px; }
+  .foto-elegida img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: none; }
+  .foto-elegida span { font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .quitar-elegida { border: 0; background: #fde8e8; color: #b00020; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; flex: none; }
 </style>
 </head>
 <body>
@@ -268,7 +273,8 @@
           <div class="todo"><label for="aDesc">Descripción (opcional)</label><textarea id="aDesc" maxlength="600"></textarea></div>
           <div class="todo"><label>Fotos de la actividad <span class="cupo" id="cupoFotos2"></span></label>
             <label class="btn claro subir">📷 Escoger fotos<input type="file" id="aFotos" accept="image/*" multiple></label>
-            <div id="aFotosInfo" class="contador">Puedes escoger varias a la vez. Después también puedes agregar más desde la lista de abajo.</div></div>
+            <div id="aFotosInfo" class="contador">Puedes escoger fotos de varias carpetas: cada vez que escojas, se suman a las anteriores.</div>
+            <div id="aFotosLista" class="fotos-elegidas"></div></div>
           <div class="todo"><button class="btn" type="submit" id="btnActividad" style="margin-top:14px">Guardar actividad y subir fotos</button>
             <span class="progreso" id="aProgreso" style="margin-left:10px"></span></div>
         </form>
@@ -803,11 +809,36 @@
     }).join('');
   }
 
-  $('aFotos').addEventListener('change', () => {
-    const n = $('aFotos').files.length;
+  // Fotos escogidas para la nueva actividad: se SUMAN cada vez que se abre el botón
+  let fotosElegidas = [];
+  function dibujarFotosElegidas() {
+    const n = fotosElegidas.length;
     const libres = Math.max(0, MAX_FOTOS - TOTAL_FOTOS);
-    $('aFotosInfo').innerHTML = n ? `<b>${n} foto(s) escogida(s).</b>` + (n > libres ? ` Solo quedan ${libres} espacio(s): se subirán las primeras ${libres}.` : '') : '';
+    $('aFotosInfo').innerHTML = n
+      ? `<b>${n} foto(s) escogida(s).</b> Puedes escoger más de otra carpeta.` + (n > libres ? ` <b>Solo quedan ${libres} espacio(s): se subirán las primeras ${libres}.</b>` : '')
+      : 'Puedes escoger fotos de varias carpetas: cada vez que escojas, se suman a las anteriores.';
+    $('aFotosLista').innerHTML = fotosElegidas.map((f, i) =>
+      `<div class="foto-elegida"><img src="${f.vista}" alt=""><span>${esc(f.archivo.name)}</span>` +
+      `<button type="button" class="quitar-elegida" data-i="${i}" title="Quitar esta foto">✕</button></div>`).join('');
+  }
+  $('aFotos').addEventListener('change', () => {
+    for (const archivo of $('aFotos').files) {
+      const clave = archivo.name + '|' + archivo.size + '|' + archivo.lastModified;
+      if (!fotosElegidas.some((f) => f.clave === clave)) fotosElegidas.push({ archivo, clave, vista: URL.createObjectURL(archivo) });
+    }
+    $('aFotos').value = '';   // así el botón se puede volver a usar sin borrar lo anterior
+    dibujarFotosElegidas();
   });
+  $('aFotosLista').addEventListener('click', (e) => {
+    const b = e.target.closest('.quitar-elegida'); if (!b) return;
+    const [quitada] = fotosElegidas.splice(+b.dataset.i, 1);
+    URL.revokeObjectURL(quitada.vista);
+    dibujarFotosElegidas();
+  });
+  function limpiarFotosElegidas() {
+    fotosElegidas.forEach((f) => URL.revokeObjectURL(f.vista));
+    fotosElegidas = []; dibujarFotosElegidas();
+  }
 
   $('formActividad').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -816,7 +847,7 @@
       titulo: $('aTitulo').value.trim(), fecha: $('aFecha').value, lugar: $('aLugar').value.trim(), descripcion: $('aDesc').value.trim(),
     }).select('id').single();
     if (error) { btn.disabled = false; aviso($('msgActividad'), mensajeError(error)); return; }
-    const archivos = [...$('aFotos').files];
+    const archivos = fotosElegidas.map((f) => f.archivo);
     let texto = 'Actividad guardada.';
     if (archivos.length) {
       const r = await subirFotos(data.id, archivos, $('aProgreso'));
@@ -826,7 +857,7 @@
     }
     btn.disabled = false;
     aviso($('msgActividad'), texto, true);
-    $('aTitulo').value = ''; $('aLugar').value = ''; $('aDesc').value = ''; $('aFotos').value = ''; $('aFotosInfo').textContent = '';
+    $('aTitulo').value = ''; $('aLugar').value = ''; $('aDesc').value = ''; $('aFotos').value = ''; limpiarFotosElegidas();
     cargarActividades();
   });
 
