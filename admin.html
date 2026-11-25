@@ -208,7 +208,6 @@
         <button type="button" class="cifra circ" data-circ="2"><b id="cC2">–</b><span>Circunscripción 2</span></button>
         <button type="button" class="cifra circ" data-circ="3"><b id="cC3">–</b><span>Circunscripción 3</span></button>
         <button type="button" class="cifra circ" data-circ="sin"><b id="cCsin">–</b><span>No figuran en el padrón del D.N.</span></button>
-        <button type="button" class="cifra circ" data-circ="sin_dn" title="Inscritos que no figuran en el padrón y dicen que votan en el Distrito Nacional"><b id="cCsin_dn">–</b><span>Votan en el D.N. <small>(según la persona)</small></span></button>
         <button type="button" class="cifra circ" data-circ="sin_fuera" title="Inscritos que no figuran en el padrón y dicen que votan fuera del Distrito Nacional"><b id="cCsin_fuera">–</b><span>Votan fuera del D.N. <small>(según la persona)</small></span></button>
       </div>
       <div class="tarjeta solo-admin padron-caja">
@@ -232,7 +231,6 @@
             <option value="2">Circ. 2</option>
             <option value="3">Circ. 3</option>
             <option value="sin">No figuran en el padrón del D.N.</option>
-            <option value="sin_dn">Votan en el D.N. (según la persona)</option>
             <option value="sin_fuera">Votan fuera del D.N. (según la persona)</option>
           </select>
           <select id="filtroPadron">
@@ -636,7 +634,6 @@
     $('cRat').textContent = ((r.por_letrero || []).find((x) => x.letrero === 'RATIFICADO') || {}).n || 0;
     const pc = Object.fromEntries((r.por_circ || []).map((x) => [x.circ == null ? 'sin' : String(x.circ), x.n]));
     ['1', '2', '3', 'sin'].forEach((k) => ($('cC' + k).textContent = pc[k] || 0));
-    $('cCsin_dn').textContent = r.sin_vota_dn ?? 0;
     $('cCsin_fuera').textContent = r.sin_vota_fuera ?? 0;
     INSCRITOS = lista.data || [];
     dibujarLista();
@@ -657,7 +654,6 @@
     return INSCRITOS.filter((p) => {
       if (est && p.estado !== est) return false;
       if (fc === 'sin' && p.circ != null) return false;
-      if (fc === 'sin_dn' && (p.circ != null || p.municipio_vota !== 'Distrito Nacional')) return false;
       if (fc === 'sin_fuera' && (p.circ != null || !p.municipio_vota || p.municipio_vota === 'Distrito Nacional')) return false;
       if (fc && !fc.startsWith('sin') && String(p.circ) !== fc) return false;
       if (fp === 'si' && p.en_padron !== true) return false;
