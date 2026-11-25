@@ -198,7 +198,6 @@
         <div class="cifra"><b id="cHoy">–</b><span>Inscritos hoy</span></div>
         <div class="cifra"><b id="cSemana">–</b><span>Esta semana</span></div>
         <div class="cifra"><b id="cExterior">–</b><span>Desde el exterior</span></div>
-        <div class="cifra"><b id="cPadronSi">–</b><span>Están en el padrón</span></div>
         <button type="button" class="cifra alerta circ" id="cifraConf"><b id="cAconf">–</b><span>A CONFIRMAR</span></button>
         <button type="button" class="cifra circ" id="cifraRat"><b id="cRat">–</b><span>RATIFICADOS</span></button>
       </div>
@@ -627,7 +626,6 @@
     dibujarBarras($('porPais'), (r.por_pais || []).slice(0, 12).map((x) => [x.pais, x.n]));
     dibujarBarras($('porSemana'), semanas.slice(-8).map((x) => ['Semana del ' + fechaDia(x.semana), x.n]));
     dibujarBarras($('porRecinto'), (r.por_recinto || []).slice(0, 12).map((x) => [x.nombre + (x.circ ? ` (C${x.circ})` : ''), x.n]));
-    $('cPadronSi').textContent = r.padron_si ?? 0;
     $('cAconf').textContent = r.a_confirmar ?? 0;
     $('cRat').textContent = ((r.por_letrero || []).find((x) => x.letrero === 'RATIFICADO') || {}).n || 0;
     const pc = Object.fromEntries((r.por_circ || []).map((x) => [x.circ == null ? 'sin' : String(x.circ), x.n]));
