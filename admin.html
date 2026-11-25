@@ -627,7 +627,7 @@
     dibujarBarras($('porSemana'), semanas.slice(-8).map((x) => ['Semana del ' + fechaDia(x.semana), x.n]));
     dibujarBarras($('porRecinto'), (r.por_recinto || []).slice(0, 12).map((x) => [x.nombre + (x.circ ? ` (C${x.circ})` : ''), x.n]));
     $('cAconf').textContent = r.a_confirmar ?? 0;
-    $('cRat').textContent = ((r.por_letrero || []).find((x) => x.letrero === 'RATIFICADO') || {}).n || 0;
+    $('cRat').textContent = (r.por_letrero || []).filter((x) => x.letrero === 'RATIFICADO' || x.letrero === 'CONFIRMADO').reduce((t, x) => t + Number(x.n || 0), 0);
     const pc = Object.fromEntries((r.por_circ || []).map((x) => [x.circ == null ? 'sin' : String(x.circ), x.n]));
     ['1', '2', '3', 'sin'].forEach((k) => ($('cC' + k).textContent = pc[k] || 0));
     $('cCsin_fuera').textContent = r.sin_vota_fuera ?? 0;
@@ -655,7 +655,7 @@
       if (fp === 'si' && p.en_padron !== true) return false;
       if (fp === 'no' && p.en_padron !== false) return false;
       if (fp === 'conf' && p.a_confirmar !== true) return false;
-      if (fp === 'rat' && p.estado_padron !== 'RATIFICADO') return false;
+      if (fp === 'rat' && p.estado_padron !== 'RATIFICADO' && p.estado_padron !== 'CONFIRMADO') return false;
       if (!q) return true;
       if (sinAcentos(p.nombre + ' ' + p.sector + ' ' + (p.pais || '') + ' ' + (p.municipio_vota || '') + ' ' + nombreRecinto(p.recinto)).includes(q)) return true;
       return qd.length >= 3 && (digitos(p.cedula).includes(qd) || digitos(p.telefono).includes(qd));
